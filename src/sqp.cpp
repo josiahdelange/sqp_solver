@@ -21,6 +21,10 @@ SQP<T>::SQP() {
     qp_solver_.settings().adaptive_rho = true;
     qp_solver_.settings().adaptive_rho_interval = 50;
     qp_solver_.settings().alpha = 1.6;
+
+    info_.iter = 0;
+    info_.qp_solver_iter;
+    info_.status = UNKNOWN;
 }
 
 template <typename T>
@@ -90,9 +94,41 @@ void SQP<T>::run_solve(Problem& prob) {
             settings_.iteration_callback(*this);
         }
 
+        printf("SQP info:\n");
+        printf("  Solver iteration: %d\n", info_.iter);
+        printf("  QP iterations: %d\n", info_.qp_solver_iter);
+        printf("  Solver status: ");
         if (termination_criteria(x_, prob)) {
             info_.status = SOLVED;
+            switch (info_.status) {
+                case SOLVED:
+                    printf("SOLVED\n");
+                    break;
+                case MAX_ITER_EXCEEDED:
+                    printf("MAX_ITER_EXCEEDED\n");
+                    break;
+                case INVALID_SETTINGS:
+                    printf("INVALID_SETTINGS\n");
+                    break;
+                default:
+                    printf("UNKNOWN\n");
+                    break;
+            }
             break;
+        }
+        switch (info_.status) {
+            case SOLVED:
+                printf("SOLVED\n");
+                break;
+            case MAX_ITER_EXCEEDED:
+                printf("MAX_ITER_EXCEEDED\n");
+                break;
+            case INVALID_SETTINGS:
+                printf("INVALID_SETTINGS\n");
+                break;
+            default:
+                printf("UNKNOWN\n");
+                break;
         }
     }
     if (iter > settings_.max_iter) {
