@@ -25,4 +25,8 @@ target_link_libraries(
 # Tests should be Debug build to enable Eigen asserts
 set_target_properties(tests PROPERTIES CMAKE_BUILD_TYPE "Debug")
 target_include_directories(tests PRIVATE ${GTEST_INCLUDE_DIRS})
-target_compile_options(tests PRIVATE "-Wall")
+
+# Custom test of constrained optimization via SQP solver
+add_executable(test_001 test_001.cpp)
+target_link_libraries(test_001 sqp_solver Eigen3::Eigen)
+set_target_properties(test_001 PROPERTIES CMAKE_BUILD_TYPE "Debug")
