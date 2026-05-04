@@ -5,11 +5,11 @@
 
 using namespace sqp;
 
-template <typename SCALAR, typename DERIVED>
-class NLPAutoDiff : public sqp::NonLinearProblem<SCALAR>
+template <typename SCALAR_TYPE, typename DERIVED_TYPE>
+class NLPAutoDiff : public sqp::NonLinearProblem<SCALAR_TYPE>
 {
 public:
-    using Scalar = SCALAR;
+    using Scalar = SCALAR_TYPE;
     using Vector = sqp::NonLinearProblem<double>::Vector;
     using Matrix = sqp::NonLinearProblem<double>::Matrix;
 
@@ -26,12 +26,12 @@ public:
 
     void objective(const Vector& x, Scalar& obj) override
     {
-        static_cast<DERIVED*>(this)->objective(x, obj);
+        static_cast<DERIVED_TYPE*>(this)->objective(x, obj);
     }
 
     void constraint(const Vector& x, Vector& c, Vector& l, Vector& u) override
     {
-        static_cast<DERIVED*>(this)->constraint(x, c, l, u);
+        static_cast<DERIVED_TYPE*>(this)->constraint(x, c, l, u);
     }
 
     void objective_linearized(const Vector& x, Vector& grad, Scalar& obj) override
@@ -40,7 +40,7 @@ public:
         ADScalar ad_obj;
         ADVectorSeed(ad_x);
         /* Static polymorphism using CRTP */
-        static_cast<DERIVED*>(this)->objective(ad_x, ad_obj);
+        static_cast<DERIVED_TYPE*>(this)->objective(ad_x, ad_obj);
         obj = ad_obj.value();
         grad = ad_obj.derivatives();
     }
@@ -52,7 +52,7 @@ public:
         ADVector ad_x = x;
 
         ADVectorSeed(ad_x);
-        static_cast<DERIVED*>(this)->constraint(ad_x, ad_c, l, u);
+        static_cast<DERIVED_TYPE*>(this)->constraint(ad_x, ad_c, l, u);
 
         // Fill constraint Jacobian
         for (int i = 0; i < ad_c.rows(); i++)
