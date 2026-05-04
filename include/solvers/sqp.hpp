@@ -20,7 +20,7 @@ struct sqp_settings_t {
     int max_iter = 100;
     int line_search_max_iter = 20;
     bool second_order_correction = false;
-    std::function<void(SQP<Scalar>&)> iteration_callback;
+    std::function<void(const SQP<Scalar>&)> iteration_callback;
 
     bool validate() {
         bool valid;
@@ -30,7 +30,7 @@ struct sqp_settings_t {
     }
 };
 
-typedef enum { SOLVED, MAX_ITER_EXCEEDED, INVALID_SETTINGS } Status;
+typedef enum { UNKNOWN, SOLVED, MAX_ITER_EXCEEDED, INVALID_SETTINGS } Status;
 
 struct Info {
     int iter;
