@@ -5,122 +5,34 @@
 
 using namespace sqp;
 
-template <typename SCALAR_TYPE, typename DERIVED_TYPE>
-class NLPAutoDiff : public sqp::NonLinearProblem<SCALAR_TYPE>
+class ConstrainedRosenbrock2D: public NonLinearProblem<double>
 {
 public:
-    using Scalar = SCALAR_TYPE;
     using Vector = sqp::NonLinearProblem<double>::Vector;
     using Matrix = sqp::NonLinearProblem<double>::Matrix;
 
-    using ADScalar = Eigen::AutoDiffScalar<Vector>;
-    using ADVector = Eigen::Matrix<ADScalar, Eigen::Dynamic, 1>;
-
-    template <typename vec>
-    void ADVectorSeed(vec& x)
-    {
-        for (int i = 0; i < x.rows(); i++) {
-            x[i].derivatives() = Vector::Unit(this->num_var, i);
-        }
-    }
-
-    void objective(const Vector& x, Scalar& obj) override
-    {
-        static_cast<DERIVED_TYPE*>(this)->objective(x, obj);
-    }
-
-    void constraint(const Vector& x, Vector& c, Vector& l, Vector& u) override
-    {
-        static_cast<DERIVED_TYPE*>(this)->constraint(x, c, l, u);
-    }
-
-    void objective_linearized(const Vector& x, Vector& grad, Scalar& obj) override
-    {
-        ADVector ad_x = x;
-        ADScalar ad_obj;
-        ADVectorSeed(ad_x);
-        /* Static polymorphism using CRTP */
-        static_cast<DERIVED_TYPE*>(this)->objective(ad_x, ad_obj);
-        obj = ad_obj.value();
-        grad = ad_obj.derivatives();
-    }
-
-    void constraint_linearized(const Vector& x, Matrix& Jc, Vector& c,
-        Vector& l, Vector& u) override
-    {
-        ADVector ad_c(this->num_constr);
-        ADVector ad_x = x;
-
-        ADVectorSeed(ad_x);
-        static_cast<DERIVED_TYPE*>(this)->constraint(ad_x, ad_c, l, u);
-
-        // Fill constraint Jacobian
-        for (int i = 0; i < ad_c.rows(); i++)
-        {
-            c[i] = ad_c[i].value();
-            Eigen::Ref<Vector> deriv = ad_c[i].derivatives();
-            Jc.row(i) = deriv.transpose();
-        }
-    }
-};
-
-class ConstrainedRosenbrock2D: public NLPAutoDiff<double, ConstrainedRosenbrock2D>
-{
-public:
     ConstrainedRosenbrock2D()
     {
         num_var = 2;
         num_constr = 2;
     }
 
-    template <typename DerivedA, typename DerivedB>
-    void objective(const DerivedA& x, DerivedB& z)
+    void objective(const Vector& decision, Scalar& obj) override
     {
-        // (a-x)^2 + b*(y-x^2)^2
-        const double a = 1;
-        const double b = 100;
-        z = 0;
-        for (int i = 0; i < x.rows() - 1; i++)
+        obj = 0;
+        for(int i = 0; i < decision.rows() - 1; i++)
         {
-            z += pow(a - x[i], 2) + b * pow(x[i + 1] - pow(x[i], 2), 2);
+            obj += pow(1 - decision[i], 2) + 100*pow(decision[i+1] - pow(decision[i], 2), 2);
         }
     }
 
-    template <typename A, typename B>
-    void constraint(const A& x, B& c, Vector& l, Vector& u)
+    void constraint(
+        const Vector& decision, Vector& constraints, Vector& lower_bnd, Vector& upper_bnd) override
     {
-        const Scalar infinity = std::numeric_limits<Scalar>::infinity();
-        // y >= x
-        // x^2 + y^2 == 1
-        c << x(0) - x(1), x.squaredNorm();
-        u << 0, 1;
-        l << -infinity, 1;
-    }
-};
-
-class RosenbrockDisk: public NLPAutoDiff<double, RosenbrockDisk>
-{
-public:
-    RosenbrockDisk()
-    {
-        num_var = 2;
-        num_constr = 1;
-    }
-
-    template <typename DerivedA, typename DerivedB>
-    void objective(const DerivedA& decision, DerivedB& cost)
-    {
-        cost = pow(1 - decision[0], 2) +
-            100*pow(decision[1] - pow(decision[0], 2), 2);
-    }
-
-    template <typename A, typename B>
-    void constraint(const A& decision, B& constraints,
-        Vector& lower_bounds, Vector& upper_bounds)
-    {
-        constraints << decision.squaredNorm() - 2;
-        lower_bounds << -1.5, -1.5;
-        upper_bounds << 1.5, 1.5;
+        const double infinity = std::numeric_limits<double>::infinity();
+        constraints << decision(0) - decision(1), decision.squaredNorm();
+        lower_bnd << -infinity, 1;
+        upper_bnd << 0, 1;
     }
 };
 

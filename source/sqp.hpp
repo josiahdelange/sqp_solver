@@ -60,9 +60,9 @@ struct Info {
     }
 };
 
-template <typename Scalar_ = double>
+template <typename SCALAR_TYPE = double>
 struct NonLinearProblem {
-    using Scalar = Scalar_;
+    using Scalar = SCALAR_TYPE;
     using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
     using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
 
@@ -70,20 +70,54 @@ struct NonLinearProblem {
     int num_constr;
 
     virtual void objective(const Vector& x, Scalar& obj) = 0;
-    virtual void objective_linearized(const Vector& x, Vector& grad, Scalar& obj) = 0;
     virtual void constraint(const Vector& x, Vector& c, Vector& l, Vector& u) = 0;
-    virtual void constraint_linearized(const Vector& x, Matrix& Jc, Vector& c, Vector& l,
-                                       Vector& u) = 0;
+
+    virtual void objective_linearized(const Vector& x, Scalar& obj, Vector& grad)
+    {
+        objective(x, obj);
+        Scalar eps_grad = 1e-12;
+        Vector err = Vector::Zero(num_var);
+        for(int ii = 0; ii < num_var; ii++) {
+            err.setZero(num_var);
+            err[ii] = eps_grad;
+
+            double obj1 = 0.0;
+            double obj2 = 0.0;
+            objective(x + err, obj1);
+            objective(x - err, obj2);
+            grad[ii] = (obj1 - obj2)/(2*eps_grad);
+        }
+    }
+
+    virtual void constraint_linearized(const Vector& x,
+        Vector& c, Vector& l, Vector& u, Matrix& Jc)
+    {
+        constraint(x, c, l, u);
+        Scalar eps_grad = 1e-12;
+        Vector err = Vector::Zero(num_var);
+        for(int jj = 0; jj < num_constr; jj++) {
+            for(int ii = 0; ii < num_var; ii++) {
+                err.setZero(num_var);
+                err[ii] = eps_grad;
+
+                Vector c1 = Vector::Zero(num_constr);
+                Vector c2 = Vector::Zero(num_constr);
+                c(x + err, c1, l, u);
+                c(x - err, c2, l, u);
+                Jc(jj,ii) = (c1(jj) - c2(jj))/(2*eps_grad);
+            }
+        }
+    }
 };
 
 /*
  * minimize     f(x)
  * subject to   l <= c(x) <= u
  */
-template <typename Scalar_>
+template <typename SCALAR_TYPE>
 class SQP {
 public:
-    using Scalar = Scalar_;
+    using Scalar = SCALAR_TYPE;
     using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
     using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
     using Problem = NonLinearProblem<Scalar>;
