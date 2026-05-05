@@ -10,7 +10,7 @@
 
 #define QP_SOLVER_PRINTING
 
-namespace qp_solver {
+namespace qp {
 
 /** Quadratic Problem
  *  minimize        0.5 x' P x + q' x

@@ -6,7 +6,7 @@
 #define SOLVER_ASSERT(x) eigen_assert(x)
 #endif
 
-namespace qp_solver {
+namespace qp {
 
 template <typename T>
 void QPSolver<T>::setup(const QP &qp) {
@@ -385,4 +385,4 @@ void QPSolver<T>::print_status(const QP &qp) const {
 template class QPSolver<double>;
 template class QPSolver<float>;
 
-}  // namespace qp_solver
+}  // namespace qp

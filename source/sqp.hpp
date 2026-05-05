@@ -24,8 +24,9 @@ struct sqp_settings_t {
 
     bool validate() {
         bool valid;
-        valid = 0.0 < tau && tau < 1.0 && 0.0 < eta && eta < 1.0 && 0.0 < rho && rho < 1.0 &&
-                eps_prim < 0.0 && eps_dual < 0.0 && max_iter > 0 && line_search_max_iter > 0;
+        valid = 0.0 < tau && tau < 1.0 && 0.0 < eta && eta < 1.0 && 0.0 < rho &&
+            rho < 1.0 && eps_prim < 0.0 && eps_dual < 0.0 && max_iter > 0 &&
+            line_search_max_iter > 0;
         return valid;
     }
 };
@@ -157,7 +158,7 @@ public:
     Settings _settings;
     Info _info;
 
-    qp_solver::QPSolver<Scalar> _qp_solver;
+    qp::QPSolver<Scalar> _qp_solver;
 };
 
 extern template class SQP<double>;

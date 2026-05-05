@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <limits>
 
-/** Damped BFGS update
+/** Damped Broyden–Fletcher–Goldfarb–Shanno (BFGS) update
  * Implements "Procedure 18.2 Damped BFGS updating for SQP" form Numerical Optimization by Nocedal.
  *
  * @param[in,out]   B hessian matrix, is updated by this function

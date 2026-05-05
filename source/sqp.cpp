@@ -246,7 +246,7 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
 template <typename T>
 bool SQP<T>::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const Vector& l,
                           const Vector& u, Vector& prim, Vector& dual) {
-    qp_solver::QuadraticProblem<Scalar> _qp;
+    qp::QuadraticProblem<Scalar> _qp;
 
     _qp.P = &P;
     _qp.q = &q;
@@ -259,14 +259,14 @@ bool SQP<T>::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, con
 
     _info.qp_solver_iter += _qp_solver.info().iter;
 
-    if (_qp_solver.info().status == qp_solver::NUMERICAL_ISSUES) {
+    if (_qp_solver.info().status == qp::NUMERICAL_ISSUES) {
         std::cout << "QPSolver NUMERICAL_ISSUES\n";
         return false;
     }
-    // if (_qp_solver.info().status == qp_solver::MAX_ITER_EXCEEDED) {
-    //     std::cout << "QPSolver MAX_ITER_EXCEEDED\n";
-    //     return false;
-    // }
+    //if (_qp_solver.info().status == qp::MAX_ITER_EXCEEDED) {
+    //    std::cout << "QPSolver MAX_ITER_EXCEEDED\n";
+    //    return false;
+    //}
 
     prim = _qp_solver.primal_solution();
     dual = _qp_solver.dual_solution();
