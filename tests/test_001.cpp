@@ -1,6 +1,5 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include <unsupported/Eigen/AutoDiff>
 #include "sqp.hpp"
 
 using namespace sqp;
