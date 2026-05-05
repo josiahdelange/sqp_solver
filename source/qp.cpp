@@ -31,15 +31,15 @@ void QPSolver<T>::setup(const QP &qp) {
     constr_type_init(*qp.l, *qp.u, constr_type);
 
     // initialize step size (rho) vector
-    rho_vec_update(settings_.rho);
+    rho_vec_update(_settings.rho);
 
     // construct KKT system and compute decomposition
     construct_KKT_mat(qp);
 
     if (compute_KKT()) {
-        info_.status = UNSOLVED;
+        _info.status = UNSOLVED;
     } else {
-        info_.status = NUMERICAL_ISSUES;
+        _info.status = NUMERICAL_ISSUES;
     }
 }
 
@@ -49,15 +49,15 @@ void QPSolver<T>::update_qp(const QP &qp) {
     constr_type_init(*qp.l, *qp.u, constr_type);
 
     // initialize step size (rho) vector
-    rho_vec_update(settings_.rho);
+    rho_vec_update(_settings.rho);
 
     // update KKT system and do factorization
     update_KKT_mat(qp);
 
     if (factorize_KKT()) {
-        info_.status = UNSOLVED;
+        _info.status = UNSOLVED;
     } else {
-        info_.status = NUMERICAL_ISSUES;
+        _info.status = NUMERICAL_ISSUES;
     }
 }
 
@@ -65,24 +65,24 @@ template <typename T>
 void QPSolver<T>::solve(const QP &qp) {
     bool check_termination = false;
 
-    if (info_.status == UNINITIALIZED || info_.status == NUMERICAL_ISSUES) {
-        // SOLVER_ASSERT(info_.status == UNINITIALIZED);
+    if (_info.status == UNINITIALIZED || _info.status == NUMERICAL_ISSUES) {
+        // SOLVER_ASSERT(_info.status == UNINITIALIZED);
         return;
     }
 
 #ifdef QP_SOLVER_PRINTING
-    if (settings_.verbose) {
-        settings_.print();
+    if (_settings.verbose) {
+        _settings.print();
     }
 #endif
-    if (!settings_.warm_start) {
+    if (!_settings.warm_start) {
         x.Zero(n);
         z.Zero(m);
         y.Zero(m);
     }
 
-    for (iter = 1; iter <= settings_.max_iter; iter++) {
-        const Scalar alpha = settings_.alpha;
+    for (iter = 1; iter <= _settings.max_iter; iter++) {
+        const Scalar alpha = _settings.alpha;
         z_prev = z;
 
         // update x_tilde z_tilde
@@ -102,7 +102,7 @@ void QPSolver<T>::solve(const QP &qp) {
         // update y
         y = y + rho_vec.cwiseProduct(alpha * z_tilde + (1 - alpha) * z_prev - z);
 
-        if (settings_.check_termination != 0 && iter % settings_.check_termination == 0) {
+        if (_settings.check_termination != 0 && iter % _settings.check_termination == 0) {
             check_termination = true;
         } else {
             check_termination = false;
@@ -112,46 +112,46 @@ void QPSolver<T>::solve(const QP &qp) {
             update_state(qp);
 
 #ifdef QP_SOLVER_PRINTING
-            if (settings_.verbose) {
+            if (_settings.verbose) {
                 print_status(qp);
             }
 #endif
             if (termination_criteria(qp)) {
-                info_.status = SOLVED;
+                _info.status = SOLVED;
                 break;
             }
         }
 
-        if (settings_.adaptive_rho && iter % settings_.adaptive_rho_interval == 0) {
+        if (_settings.adaptive_rho && iter % _settings.adaptive_rho_interval == 0) {
             if (!check_termination) {
                 // state was not yet updated
                 update_state(qp);
             }
             Scalar new_rho = rho_estimate(rho, qp);
             new_rho = fmax(RHO_MIN, fmin(new_rho, RHO_MAX));
-            info_.rho_estimate = new_rho;
+            _info.rho_estimate = new_rho;
 
-            if (new_rho < rho / settings_.adaptive_rho_tolerance ||
-                new_rho > rho * settings_.adaptive_rho_tolerance) {
+            if (new_rho < rho / _settings.adaptive_rho_tolerance ||
+                new_rho > rho * _settings.adaptive_rho_tolerance) {
                 rho_vec_update(new_rho);
                 update_KKT_rho();
                 /* Note: KKT Sparsity pattern unchanged by rho update. Only factorize. */
                 if (!factorize_KKT()) {
-                    info_.status = NUMERICAL_ISSUES;
+                    _info.status = NUMERICAL_ISSUES;
                     break;
                 }
             }
         }
     }
 
-    if (iter > settings_.max_iter) {
-        info_.status = MAX_ITER_EXCEEDED;
+    if (iter > _settings.max_iter) {
+        _info.status = MAX_ITER_EXCEEDED;
     }
-    info_.iter = iter;
+    _info.iter = iter;
 
 #ifdef QP_SOLVER_PRINTING
-    if (settings_.verbose) {
-        info_.print();
+    if (_settings.verbose) {
+        _info.print();
     }
 #endif
 }
@@ -169,7 +169,7 @@ void QPSolver<T>::construct_KKT_mat(const QP &qp) {
     // top left:  P + sigma*I
     sparse_insert_at(kkt_mat, 0, 0, *qp.P);
     for (int i = 0; i < n; i++) {
-        kkt_mat.coeffRef(i, i) += settings_.sigma;
+        kkt_mat.coeffRef(i, i) += _settings.sigma;
     }
 
     // bottom left:  A
@@ -182,7 +182,7 @@ void QPSolver<T>::construct_KKT_mat(const QP &qp) {
 
     kkt_mat.makeCompressed();
 #else
-    kkt_mat.topLeftCorner(n, n) = *qp.P + settings_.sigma * Matrix::Identity(n, n);
+    kkt_mat.topLeftCorner(n, n) = *qp.P + _settings.sigma * Matrix::Identity(n, n);
     kkt_mat.bottomLeftCorner(m, n) = *qp.A;
     kkt_mat.bottomRightCorner(m, m) = -1.0 * rho_inv_vec.asDiagonal();
 #endif
@@ -201,7 +201,7 @@ void QPSolver<T>::update_KKT_mat(const QP &qp) {
             if (row < n) {
                 if (col < n) {
                     // top left:  P + sigma*I
-                    it.valueRef() = qp.P->coeff(row, col) + settings_.sigma;
+                    it.valueRef() = qp.P->coeff(row, col) + _settings.sigma;
                 } else {
                     // top right:  A'
                     it.valueRef() = qp.A->coeff(col, row - n);
@@ -271,7 +271,7 @@ void QPSolver<T>::sparse_insert_at(Matrix &dst, int row, int col, const Matrix &
 
 template <typename T>
 void QPSolver<T>::form_KKT_rhs(const QP &qp, Vector &rhs) {
-    rhs.head(n) = settings_.sigma * x - *qp.q;
+    rhs.head(n) = _settings.sigma * x - *qp.q;
     rhs.tail(m) = z - rho_inv_vec.cwiseProduct(y);
 }
 
@@ -310,7 +310,7 @@ void QPSolver<T>::rho_vec_update(Scalar rho0) {
     }
     rho_inv_vec = rho_vec.cwiseInverse();
     rho = rho0;
-    info_.rho_updates += 1;
+    _info.rho_updates += 1;
 }
 
 template <typename T>
@@ -326,15 +326,15 @@ void QPSolver<T>::update_state(const QP &qp) {
     norm_q = qp.q->template lpNorm<Eigen::Infinity>();
     max_Px_ATy_q_norm_ = fmax(norm_Px, fmax(norm_ATy, norm_q));
 
-    info_.res_prim = residual_prim(qp);
-    info_.res_dual = residual_dual(qp);
+    _info.res_prim = residual_prim(qp);
+    _info.res_dual = residual_dual(qp);
 }
 
 template <typename T>
 typename QPSolver<T>::Scalar QPSolver<T>::rho_estimate(const Scalar rho0, const QP &qp) const {
     Scalar rp_norm, rd_norm;
-    rp_norm = info_.res_prim / (max_Ax_z_norm_ + DIV_BY_ZERO_REGUL);
-    rd_norm = info_.res_dual / (max_Px_ATy_q_norm_ + DIV_BY_ZERO_REGUL);
+    rp_norm = _info.res_prim / (max_Ax_z_norm_ + DIV_BY_ZERO_REGUL);
+    rd_norm = _info.res_dual / (max_Px_ATy_q_norm_ + DIV_BY_ZERO_REGUL);
 
     Scalar rho_new = rho0 * sqrt(rp_norm / (rd_norm + DIV_BY_ZERO_REGUL));
     return rho_new;
@@ -342,12 +342,12 @@ typename QPSolver<T>::Scalar QPSolver<T>::rho_estimate(const Scalar rho0, const 
 
 template <typename T>
 typename QPSolver<T>::Scalar QPSolver<T>::eps_prim(const QP &qp) const {
-    return settings_.eps_abs + settings_.eps_rel * max_Ax_z_norm_;
+    return _settings.eps_abs + _settings.eps_rel * max_Ax_z_norm_;
 }
 
 template <typename T>
 typename QPSolver<T>::Scalar QPSolver<T>::eps_dual(const QP &qp) const {
-    return settings_.eps_abs + settings_.eps_rel * max_Px_ATy_q_norm_;
+    return _settings.eps_abs + _settings.eps_rel * max_Px_ATy_q_norm_;
 }
 
 template <typename T>
@@ -363,7 +363,7 @@ typename QPSolver<T>::Scalar QPSolver<T>::residual_dual(const QP &qp) const {
 template <typename T>
 bool QPSolver<T>::termination_criteria(const QP &qp) {
     // check residual norms to detect optimality
-    if (info_.res_prim <= eps_prim(qp) && info_.res_dual <= eps_dual(qp)) {
+    if (_info.res_prim <= eps_prim(qp) && _info.res_dual <= eps_dual(qp)) {
         return true;
     }
 
@@ -375,10 +375,10 @@ template <typename T>
 void QPSolver<T>::print_status(const QP &qp) const {
     Scalar obj = 0.5 * x.dot((*qp.P) * x) + (*qp.q).dot(x);
 
-    if (iter == settings_.check_termination) {
+    if (iter == _settings.check_termination) {
         printf("iter   obj       rp        rd\n");
     }
-    printf("%4d  %.2e  %.2e  %.2e\n", iter, obj, info_.res_prim, info_.res_dual);
+    printf("%4d  %.2e  %.2e  %.2e\n", iter, obj, _info.res_prim, _info.res_dual);
 }
 #endif
 

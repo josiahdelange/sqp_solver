@@ -162,15 +162,16 @@ class QPSolver {
     inline const Vector &dual_solution() const { return y; }
     inline Vector &dual_solution() { return y; }
 
-    inline const Settings &settings() const { return settings_; }
-    inline Settings &settings() { return settings_; }
+    inline const Settings &settings() const { return _settings; }
+    inline Settings &settings() { return _settings; }
 
-    inline const Info &info() const { return info_; }
-    inline Info &info() { return info_; }
+    inline const Info &info() const { return _info; }
+    inline Info &info() { return _info; }
 
 
     /* Public funcitions for unit testing */
-    static void constr_type_init(const Vector& l, const Vector& u, Eigen::VectorXi &constr_type);
+    static void constr_type_init(const Vector& l, const Vector& u,
+        Eigen::VectorXi &constr_type);
 
    private:
     /* Construct the KKT matrix of the form
@@ -195,7 +196,7 @@ class QPSolver {
 #ifdef QP_SOLVER_SPARSE
     void sparse_insert_at(Matrix &dst, int row, int col, const Matrix &src) const
 #endif
-        void form_KKT_rhs(const QP &qp, Vector &rhs);
+    void form_KKT_rhs(const QP &qp, Vector &rhs);
 
     void box_projection(Vector &z, const Vector &l, const Vector &u);
 
@@ -240,8 +241,8 @@ class QPSolver {
 
     Eigen::VectorXi constr_type; /**< constraint type classification */
 
-    Settings settings_;
-    Info info_;
+    Settings _settings;
+    Info _info;
 
     Matrix kkt_mat;
     LinearSolver linear_solver;

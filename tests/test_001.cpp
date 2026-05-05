@@ -127,9 +127,9 @@ public:
 int main(int argc, char* argv[])
 {
     // Nonlinear problem
-    RosenbrockDisk problem;
+    ConstrainedRosenbrock2D problem;
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(2);
-    Eigen::VectorXd y0 = Eigen::VectorXd::Zero(1);
+    Eigen::VectorXd y0 = Eigen::VectorXd::Zero(2);
 
     // SQP solver initialization
     sqp::SQP<double> solver;

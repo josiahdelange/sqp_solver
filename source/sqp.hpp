@@ -101,17 +101,17 @@ public:
     void solve(Problem& prob, const Vector& x0, const Vector& lambda0);
     void solve(Problem& prob);
 
-    inline const Vector& primal_solution() const { return x_; }
-    inline Vector& primal_solution() { return x_; }
+    inline const Vector& primal_solution() const { return _x; }
+    inline Vector& primal_solution() { return _x; }
 
-    inline const Vector& dual_solution() const { return lambda_; }
-    inline Vector& dual_solution() { return lambda_; }
+    inline const Vector& dual_solution() const { return _lambda; }
+    inline Vector& dual_solution() { return _lambda; }
 
-    inline const Settings& settings() const { return settings_; }
-    inline Settings& settings() { return settings_; }
+    inline const Settings& settings() const { return _settings; }
+    inline Settings& settings() { return _settings; }
 
-    inline const Info& info() const { return info_; }
-    inline Info& info() { return info_; }
+    inline const Info& info() const { return _info; }
+    inline Info& info() { return _info; }
 
     // private:
     void run_solve(Problem& prob);
@@ -137,27 +137,27 @@ public:
     Scalar max_constraint_violation(const Vector& x, Problem& prob);
 
     // Solver state variables
-    Vector x_;
-    Vector lambda_;
-    Vector step_prev_;
-    Vector grad_L_;
-    Vector delta_grad_L_;
+    Vector _x;
+    Vector _lambda;
+    Vector _step_prev;
+    Vector _grad_L;
+    Vector _delta_grad_L;
 
-    Matrix Hess_;
-    Vector grad_obj_;
-    Scalar obj_;
-    Matrix Jac_constr_;
-    Vector constr_;
-    Vector l_, u_;
+    Matrix _Hess;
+    Vector _grad_obj;
+    Scalar _obj;
+    Matrix _Jac_constr;
+    Vector _constr;
+    Vector _l, _u;
 
     // info
-    Scalar dual_step_norm_;
-    Scalar primal_step_norm_;
+    Scalar _dual_step_norm;
+    Scalar _primal_step_norm;
 
-    Settings settings_;
-    Info info_;
+    Settings _settings;
+    Info _info;
 
-    qp_solver::QPSolver<Scalar> qp_solver_;
+    qp_solver::QPSolver<Scalar> _qp_solver;
 };
 
 extern template class SQP<double>;

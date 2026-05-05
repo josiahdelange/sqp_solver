@@ -13,24 +13,24 @@ namespace sqp {
 template <typename T>
 SQP<T>::SQP() {
     // TODO(mi): Performance strongly depends on QP solver settings, which is bad.
-    qp_solver_.settings().warm_start = true;
-    qp_solver_.settings().check_termination = 10;
-    qp_solver_.settings().eps_abs = 1e-4;
-    qp_solver_.settings().eps_rel = 1e-4;
-    qp_solver_.settings().max_iter = 100;
-    qp_solver_.settings().adaptive_rho = true;
-    qp_solver_.settings().adaptive_rho_interval = 50;
-    qp_solver_.settings().alpha = 1.6;
+    _qp_solver.settings().warm_start = true;
+    _qp_solver.settings().check_termination = 10;
+    _qp_solver.settings().eps_abs = 1e-4;
+    _qp_solver.settings().eps_rel = 1e-4;
+    _qp_solver.settings().max_iter = 100;
+    _qp_solver.settings().adaptive_rho = true;
+    _qp_solver.settings().adaptive_rho_interval = 50;
+    _qp_solver.settings().alpha = 1.6;
 
-    info_.iter = 0;
-    info_.qp_solver_iter;
-    info_.status = UNKNOWN;
+    _info.iter = 0;
+    _info.qp_solver_iter;
+    _info.status = UNKNOWN;
 }
 
 template <typename T>
 void SQP<T>::solve(Problem& prob, const Vector& x0, const Vector& lambda0) {
-    x_ = x0;
-    lambda_ = lambda0;
+    _x = x0;
+    _lambda = lambda0;
     run_solve(prob);
 }
 
@@ -39,8 +39,8 @@ void SQP<T>::solve(Problem& prob) {
     const int nx = prob.num_var;
     const int nc = prob.num_constr;
 
-    x_.setZero(nx);
-    lambda_.setZero(nc);
+    _x.setZero(nx);
+    _lambda.setZero(nc);
     run_solve(prob);
 }
 
@@ -56,51 +56,51 @@ void SQP<T>::run_solve(Problem& prob) {
     p.resize(nx);
     p_lambda.resize(nc);
 
-    step_prev_.resize(nx);
-    grad_L_.resize(nx);
-    delta_grad_L_.resize(nx);
+    _step_prev.resize(nx);
+    _grad_L.resize(nx);
+    _delta_grad_L.resize(nx);
 
-    Hess_.resize(nx, nx);
-    grad_obj_.resize(nx);
-    Jac_constr_.resize(nc, nx);
-    constr_.resize(nc);
-    l_.resize(nc);
-    u_.resize(nc);
+    _Hess.resize(nx, nx);
+    _grad_obj.resize(nx);
+    _Jac_constr.resize(nc, nx);
+    _constr.resize(nc);
+    _l.resize(nc);
+    _u.resize(nc);
 
-    info_.qp_solver_iter = 0;
+    _info.qp_solver_iter = 0;
 
-    if (settings_.iteration_callback) {
-        settings_.iteration_callback(*this);
+    if (_settings.iteration_callback) {
+        _settings.iteration_callback(*this);
     }
 
-    int& iter = info_.iter;
-    for (iter = 1; iter <= settings_.max_iter; iter++) {
+    int& iter = _info.iter;
+    for (iter = 1; iter <= _settings.max_iter; iter++) {
         // Solve QP
         solve_qp(prob, p, p_lambda);
-        p_lambda -= lambda_;
+        p_lambda -= _lambda;
 
         alpha = line_search(prob, p);
 
         // take step
-        x_ = x_ + alpha * p;
-        lambda_ = lambda_ + alpha * p_lambda;
+        _x = _x + alpha * p;
+        _lambda = _lambda + alpha * p_lambda;
 
         // update step info
-        step_prev_ = alpha * p;
-        primal_step_norm_ = alpha * p.template lpNorm<Eigen::Infinity>();
-        dual_step_norm_ = alpha * p_lambda.template lpNorm<Eigen::Infinity>();
+        _step_prev = alpha * p;
+        _primal_step_norm = alpha * p.template lpNorm<Eigen::Infinity>();
+        _dual_step_norm = alpha * p_lambda.template lpNorm<Eigen::Infinity>();
 
-        if (settings_.iteration_callback) {
-            settings_.iteration_callback(*this);
+        if (_settings.iteration_callback) {
+            _settings.iteration_callback(*this);
         }
 
         printf("SQP info:\n");
-        printf("  Solver iteration: %d\n", info_.iter);
-        printf("  QP iterations: %d\n", info_.qp_solver_iter);
+        printf("  Solver iteration: %d\n", _info.iter);
+        printf("  QP iterations: %d\n", _info.qp_solver_iter);
         printf("  Solver status: ");
-        if (termination_criteria(x_, prob)) {
-            info_.status = SOLVED;
-            switch (info_.status) {
+        if (termination_criteria(_x, prob)) {
+            _info.status = SOLVED;
+            switch (_info.status) {
                 case SOLVED:
                     printf("SOLVED\n");
                     break;
@@ -116,7 +116,7 @@ void SQP<T>::run_solve(Problem& prob) {
             }
             break;
         }
-        switch (info_.status) {
+        switch (_info.status) {
             case SOLVED:
                 printf("SOLVED\n");
                 break;
@@ -131,8 +131,8 @@ void SQP<T>::run_solve(Problem& prob) {
                 break;
         }
     }
-    if (iter > settings_.max_iter) {
-        info_.status = MAX_ITER_EXCEEDED;
+    if (iter > _settings.max_iter) {
+        _info.status = MAX_ITER_EXCEEDED;
     }
 }
 
@@ -159,8 +159,8 @@ bool is_posdef(Matrix H) {
 
 template <typename T>
 bool SQP<T>::termination_criteria(const Vector& x, Problem& prob) {
-    if (primal_step_norm_ <= settings_.eps_prim && dual_step_norm_ <= settings_.eps_dual &&
-        max_constraint_violation(x, prob) <= settings_.eps_prim) {
+    if (_primal_step_norm <= _settings.eps_prim && _dual_step_norm <= _settings.eps_dual &&
+        max_constraint_violation(x, prob) <= _settings.eps_prim) {
         return true;
     }
     return false;
@@ -191,50 +191,50 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
      * Where the constraint bounds l,u set to l=u for equality constraints or
      * set to +/-INFINITY if unbounded.
      */
-    prob.objective_linearized(x_, grad_obj_, obj_);
-    prob.constraint_linearized(x_, Jac_constr_, constr_, l_, u_);
+    prob.objective_linearized(_x, _grad_obj, _obj);
+    prob.constraint_linearized(_x, _Jac_constr, _constr, _l, _u);
 
-    delta_grad_L_ = -grad_L_;
-    grad_L_ = grad_obj_ + Jac_constr_.transpose() * lambda_;
+    _delta_grad_L = -_grad_L;
+    _grad_L = _grad_obj + _Jac_constr.transpose() * _lambda;
 
     // BFGS update
-    if (info_.iter == 1) {
-        Hess_.setIdentity();
+    if (_info.iter == 1) {
+        _Hess.setIdentity();
     } else {
-        delta_grad_L_ += grad_L_;  // delta_grad_L_ = grad_L_prev - grad_L
-        BFGS_update(Hess_, step_prev_, delta_grad_L_);
+        _delta_grad_L += _grad_L;  // _delta_grad_L = _grad_Lprev - grad_L
+        BFGS_update(_Hess, _step_prev, _delta_grad_L);
     }
 
-    if (!is_posdef(Hess_)) {
+    if (!is_posdef(_Hess)) {
         std::cout << "Hessian not positive definite\n";
         Scalar tau = 1e-3;
         Vector v = Vector(prob.num_var);
-        while (!is_posdef(Hess_)) {
+        while (!is_posdef(_Hess)) {
             v.setConstant(tau);
-            Hess_ += v.asDiagonal();
+            _Hess += v.asDiagonal();
             tau *= 10;
         }
     }
-    if (is_nan(Hess_)) {
+    if (is_nan(_Hess)) {
         std::cout << "Hessian is NaN\n";
     }
 
-    SOLVER_ASSERT(is_posdef(Hess_));
-    SOLVER_ASSERT(!is_nan(Hess_));
+    SOLVER_ASSERT(is_posdef(_Hess));
+    SOLVER_ASSERT(!is_nan(_Hess));
 
     // Constraints
     // from   l <= A.x + b <= u
     // to   l-b <= A.x     <= u-b
-    Vector l = l_ - constr_;
-    Vector u = u_ - constr_;
-    Matrix& A = Jac_constr_;
-    Matrix& P = Hess_;
-    Vector& q = grad_obj_;
+    Vector l = _l - _constr;
+    Vector u = _u - _constr;
+    Matrix& A = _Jac_constr;
+    Matrix& P = _Hess;
+    Vector& q = _grad_obj;
 
     // solve the QP
     run_solve_qp(P, q, A, l, u, step, lambda);
 
-    if (settings_.second_order_correction) {
+    if (_settings.second_order_correction) {
         second_order_correction(prob, step, lambda);
     }
 
@@ -246,30 +246,30 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
 template <typename T>
 bool SQP<T>::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const Vector& l,
                           const Vector& u, Vector& prim, Vector& dual) {
-    qp_solver::QuadraticProblem<Scalar> qp_;
+    qp_solver::QuadraticProblem<Scalar> _qp;
 
-    qp_.P = &P;
-    qp_.q = &q;
-    qp_.A = &A;
-    qp_.l = &l;
-    qp_.u = &u;
+    _qp.P = &P;
+    _qp.q = &q;
+    _qp.A = &A;
+    _qp.l = &l;
+    _qp.u = &u;
 
-    qp_solver_.setup(qp_);
-    qp_solver_.solve(qp_);
+    _qp_solver.setup(_qp);
+    _qp_solver.solve(_qp);
 
-    info_.qp_solver_iter += qp_solver_.info().iter;
+    _info.qp_solver_iter += _qp_solver.info().iter;
 
-    if (qp_solver_.info().status == qp_solver::NUMERICAL_ISSUES) {
+    if (_qp_solver.info().status == qp_solver::NUMERICAL_ISSUES) {
         std::cout << "QPSolver NUMERICAL_ISSUES\n";
         return false;
     }
-    // if (qp_solver_.info().status == qp_solver::MAX_ITER_EXCEEDED) {
+    // if (_qp_solver.info().status == qp_solver::MAX_ITER_EXCEEDED) {
     //     std::cout << "QPSolver MAX_ITER_EXCEEDED\n";
     //     return false;
     // }
 
-    prim = qp_solver_.primal_solution();
-    dual = qp_solver_.dual_solution();
+    prim = _qp_solver.primal_solution();
+    dual = _qp_solver.dual_solution();
 
     SOLVER_ASSERT(!is_nan(prim));
     SOLVER_ASSERT(!is_nan(dual));
@@ -280,31 +280,31 @@ bool SQP<T>::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, con
 template <typename T>
 void SQP<T>::second_order_correction(Problem& prob, Vector& p, Vector& lambda) {
     // Scalar mu, constr_l1, phi_l1;
-    // constr_l1 = constraint_norm(constr_, l_, u_);
-    // mu = (grad_obj_.dot(p) + 0.5 * p.dot(Hess_ * p)) / ((1 - settings_.rho) * constr_l1);
-    // phi_l1 = obj_ + mu * constr_l1;
+    // constr_l1 = constraint_norm(constr_, _l, _u);
+    // mu = (_grad_obj.dot(p) + 0.5 * p.dot(_Hess * p)) / ((1 - _settings.rho) * constr_l1);
+    // phi_l1 = _obj + mu * constr_l1;
 
-    // Scalar obj_step, constr_l1_step, phi_l1_step;
-    // Vector x_step = x_ + p;
-    // prob.objective(x_step, obj_step);
-    // constr_l1_step = constraint_norm(x_step, prob);
-    // phi_l1_step = obj_step + mu * constr_l1_step;
+    // Scalar _objstep, constr_l1_step, phi_l1_step;
+    // Vector _xstep = _x + p;
+    // prob.objective(_xstep, _objstep);
+    // constr_l1_step = constraint_norm(_xstep, prob);
+    // phi_l1_step = _objstep + mu * constr_l1_step;
 
     // printf("phi_l1_step %f  phi_l1 %f  constr_l1_step %f  constr_l1 %f\n", phi_l1_step, phi_l1,
     //        constr_l1_step, constr_l1);
     // if (phi_l1_step >= phi_l1 && constr_l1_step >= constr_l1) {
     {
-        Vector x_step = x_ + p;
-        Vector constr_step(constr_.rows());
-        prob.constraint(x_step, constr_step, l_, u_);
+        Vector _xstep = _x + p;
+        Vector constr_step(_constr.rows());
+        prob.constraint(_xstep, constr_step, _l, _u);
 
-        Matrix& A = Jac_constr_;
-        Matrix& P = Hess_;
-        Vector& q = grad_obj_;
+        Matrix& A = _Jac_constr;
+        Matrix& P = _Hess;
+        Vector& q = _grad_obj;
 
         Vector d = constr_step - A * p;
-        Vector l = l_ - d;
-        Vector u = u_ - d;
+        Vector l = _l - d;
+        Vector u = _u - d;
 
         // TODO: only l and u change, possible to update QP solver more efficiently
         run_solve_qp(P, q, A, l, u, p, lambda);
@@ -312,28 +312,28 @@ void SQP<T>::second_order_correction(Problem& prob, Vector& p, Vector& lambda) {
 }
 template <typename T>
 typename SQP<T>::Scalar SQP<T>::line_search(Problem& prob, const Vector& p) {
-    // Note: using members obj_ and grad_obj_, which are updated in solve_qp().
+    // Note: using members _obj and _grad_obj, which are updated in solve_qp().
 
     Scalar mu, phi_l1, Dp_phi_l1;
-    const Scalar tau = settings_.tau;  // line search step decrease, 0 < tau < settings.tau
+    const Scalar tau = _settings.tau;  // line search step decrease, 0 < tau < settings.tau
 
-    Scalar constr_l1 = constraint_norm(constr_, l_, u_);
+    Scalar constr_l1 = constraint_norm(_constr, _l, _u);
 
     // get mu from merit function model using hessian of Lagrangian instead
-    mu = (grad_obj_.dot(p) + 0.5 * p.dot(Hess_ * p)) / ((1 - settings_.rho) * constr_l1);
+    mu = (_grad_obj.dot(p) + 0.5 * p.dot(_Hess * p)) / ((1 - _settings.rho) * constr_l1);
 
-    phi_l1 = obj_ + mu * constr_l1;
-    Dp_phi_l1 = grad_obj_.dot(p) - mu * constr_l1;
+    phi_l1 = _obj + mu * constr_l1;
+    Dp_phi_l1 = _grad_obj.dot(p) - mu * constr_l1;
 
     Scalar alpha = 1.0;
     int i;
-    for (i = 1; i < settings_.line_search_max_iter; i++) {
-        Scalar obj_step;
-        Vector x_step = x_ + alpha * p;
-        prob.objective(x_step, obj_step);
+    for (i = 1; i < _settings.line_search_max_iter; i++) {
+        Scalar _objstep;
+        Vector _xstep = _x + alpha * p;
+        prob.objective(_xstep, _objstep);
 
-        Scalar phi_l1_step = obj_step + mu * constraint_norm(x_step, prob);
-        if (phi_l1_step <= phi_l1 + alpha * settings_.eta * Dp_phi_l1) {
+        Scalar phi_l1_step = _objstep + mu * constraint_norm(_xstep, prob);
+        if (phi_l1_step <= phi_l1 + alpha * _settings.eta * Dp_phi_l1) {
             // accept step
             break;
         } else {
@@ -344,7 +344,8 @@ typename SQP<T>::Scalar SQP<T>::line_search(Problem& prob, const Vector& p) {
 }
 
 template <typename T>
-typename SQP<T>::Scalar SQP<T>::constraint_norm(const Vector &constr, const Vector &l, const Vector &u) const {
+typename SQP<T>::Scalar SQP<T>::constraint_norm(
+    const Vector &constr, const Vector &l, const Vector &u) const {
     Scalar c_l1 = DIV_BY_ZERO_REGUL;
 
     // l <= c(x) <= u
@@ -356,23 +357,23 @@ typename SQP<T>::Scalar SQP<T>::constraint_norm(const Vector &constr, const Vect
 
 template <typename T>
 typename SQP<T>::Scalar SQP<T>::constraint_norm(const Vector& x, Problem& prob) {
-    // Note: uses members constr_, l_ and u_ as temporary
-    prob.constraint(x, constr_, l_, u_);
+    // Note: uses members _constr, _l and _u as temporary
+    prob.constraint(x, _constr, _l, _u);
 
-    return constraint_norm(constr_, l_, u_);
+    return constraint_norm(_constr, _l, _u);
 }
 
 template <typename T>
 typename SQP<T>::Scalar SQP<T>::max_constraint_violation(const Vector& x, Problem& prob) {
-    // Note: uses members constr_, l_ and u_ as temporary
+    // Note: uses members _constr, _l and _u as temporary
 
     Scalar c_max = 0;
-    prob.constraint(x, constr_, l_, u_);
+    prob.constraint(x, _constr, _l, _u);
 
     // l <= c(x) <= u
     if (prob.num_constr > 0) {
-        c_max = fmax(c_max, (l_ - constr_).maxCoeff());
-        c_max = fmax(c_max, (constr_ - u_).maxCoeff());
+        c_max = fmax(c_max, (_l - _constr).maxCoeff());
+        c_max = fmax(c_max, (_constr - _u).maxCoeff());
     }
 
     return c_max;
