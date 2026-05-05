@@ -102,8 +102,8 @@ struct NonLinearProblem {
 
                 Vector c1 = Vector::Zero(num_constr);
                 Vector c2 = Vector::Zero(num_constr);
-                c(x + err, c1, l, u);
-                c(x - err, c2, l, u);
+                constraint(x + err, c1, l, u);
+                constraint(x - err, c2, l, u);
                 Jc(jj,ii) = (c1(jj) - c2(jj))/(2*eps_grad);
             }
         }

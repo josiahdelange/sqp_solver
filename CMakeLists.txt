@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 project(sqp_solver VERSION 0.1.0 LANGUAGES CXX)
 
 # Eigen library
+set(Eigen3_DIR third-party/eigen-5.0.0)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
 # Main library
