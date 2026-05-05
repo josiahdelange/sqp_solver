@@ -251,4 +251,4 @@ class QPSolver {
 extern template class QPSolver<double>;
 extern template class QPSolver<float>;
 
-}  // namespace qp_solver
+} // namespace qp

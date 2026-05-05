@@ -202,7 +202,7 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
         _Hess.setIdentity();
     } else {
         _delta_grad_L += _grad_L;  // _delta_grad_L = _grad_Lprev - grad_L
-        BFGS_update(_Hess, _step_prev, _delta_grad_L);
+        bfgs::update(_Hess, _step_prev, _delta_grad_L);
     }
 
     if(!is_posdef(_Hess)) {

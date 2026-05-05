@@ -5,6 +5,8 @@
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
 
+namespace utils {
+
 template <typename qp_t>
 void print_qp(qp_t qp)
 {
@@ -28,5 +30,7 @@ bool is_psd(Mat &h)
     }
     return true;
 }
+
+} // namespace utils
 
 #endif /* UTILS_HPP */

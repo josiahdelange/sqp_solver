@@ -4,15 +4,18 @@
 #include <Eigen/Dense>
 #include <limits>
 
-/** Damped Broyden–Fletcher–Goldfarb–Shanno (BFGS) update
- * Implements "Procedure 18.2 Damped BFGS updating for SQP" form Numerical Optimization by Nocedal.
- *
- * @param[in,out]   B hessian matrix, is updated by this function
- * @param[in]       s step vector (x - x_prev)
- * @param[in]       y gradient change (grad - grad_prev)
- */
+namespace bfgs {
+
 template <typename Mat, typename Vec>
-void BFGS_update(Mat& B, const Vec& s, const Vec& y) {
+void update(Mat& B, const Vec& s, const Vec& y) {
+    /** Damped Broyden–Fletcher–Goldfarb–Shanno (BFGS) update
+     * Implements "Procedure 18.2 Damped BFGS updating for SQP" from
+     *            Numerical Optimization by Nocedal.
+     *
+     * @param[in,out]   B hessian matrix, is updated by this function
+     * @param[in]       s step vector (x - x_prev)
+     * @param[in]       y gradient change (grad - grad_prev)
+    */
     using Scalar = typename Mat::Scalar;
     Scalar sy, sr, sBs;
     Vec Bs, r;
@@ -40,8 +43,5 @@ void BFGS_update(Mat& B, const Vec& s, const Vec& y) {
     B.noalias() += -Bs * Bs.transpose() / sBs + r * r.transpose() / sr;
 }
 
-// extern template void BFGS_update<Eigen::MatrixXd, Eigen::VectorXd>(Eigen::MatrixXd& B,
-//                                                                    const Eigen::VectorXd& s,
-//                                                                    const Eigen::VectorXd& y)
-
+} // namespace bfgs
 #endif /* BFGS_HPP */
