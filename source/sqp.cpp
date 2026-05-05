@@ -1,8 +1,8 @@
 #include <Eigen/Eigenvalues>
 #include <cmath>
 #include <iostream>
-#include <solvers/bfgs.hpp>
-#include <solvers/sqp.hpp>
+#include "bfgs.hpp"
+#include "sqp.hpp"
 
 #ifndef SOLVER_ASSERT
 #define SOLVER_ASSERT(x) eigen_assert(x)

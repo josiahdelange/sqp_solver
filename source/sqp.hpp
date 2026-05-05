@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 #include <limits>
 
-#include <solvers/qp.hpp>
+#include "qp.hpp"
 
 namespace sqp {
 
@@ -81,7 +81,7 @@ struct NonLinearProblem {
  */
 template <typename Scalar_>
 class SQP {
-   public:
+public:
     using Scalar = Scalar_;
     using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
     using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;

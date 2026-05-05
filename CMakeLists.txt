@@ -7,11 +7,10 @@ option(SQP_SOLVER_INSTALL "Enable generation of install target" ON)
 # Eigen library
 find_package(Eigen3 REQUIRED NO_MODULE)
 
-add_library(${PROJECT_NAME} STATIC src/qp.cpp src/sqp.cpp)
-target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
-target_include_directories(${PROJECT_NAME} PUBLIC include/)
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
+# Source files
+add_subdirectory(source)
 
+# Test files
 if(SQP_SOLVER_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

@@ -1,6 +1,6 @@
 #include <cmath>
 #include <iostream>
-#include <solvers/qp.hpp>
+#include "qp.hpp"
 
 #ifndef SOLVER_ASSERT
 #define SOLVER_ASSERT(x) eigen_assert(x)

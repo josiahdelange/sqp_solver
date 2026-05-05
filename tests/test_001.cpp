@@ -1,7 +1,7 @@
-#include <Eigen/Dense>
-#include <solvers/sqp.hpp>
-#include <unsupported/Eigen/AutoDiff>
 #include <iostream>
+#include <Eigen/Dense>
+#include <unsupported/Eigen/AutoDiff>
+#include "sqp.hpp"
 
 using namespace sqp;
 
@@ -98,12 +98,38 @@ public:
     }
 };
 
+class RosenbrockDisk: public NLPAutoDiff<double, RosenbrockDisk>
+{
+public:
+    RosenbrockDisk()
+    {
+        num_var = 2;
+        num_constr = 1;
+    }
+
+    template <typename DerivedA, typename DerivedB>
+    void objective(const DerivedA& decision, DerivedB& cost)
+    {
+        cost = pow(1 - decision[0], 2) +
+            100*pow(decision[1] - pow(decision[0], 2), 2);
+    }
+
+    template <typename A, typename B>
+    void constraint(const A& decision, B& constraints,
+        Vector& lower_bounds, Vector& upper_bounds)
+    {
+        constraints << decision.squaredNorm() - 2;
+        lower_bounds << -1.5, -1.5;
+        upper_bounds << 1.5, 1.5;
+    }
+};
+
 int main(int argc, char* argv[])
 {
     // Nonlinear problem
-    ConstrainedRosenbrock2D problem;
-    Eigen::VectorXd x0 = Eigen::Vector2d(0, 0);
-    Eigen::VectorXd y0 = Eigen::VectorXd::Zero(2);
+    RosenbrockDisk problem;
+    Eigen::VectorXd x0 = Eigen::VectorXd::Zero(2);
+    Eigen::VectorXd y0 = Eigen::VectorXd::Zero(1);
 
     // SQP solver initialization
     sqp::SQP<double> solver;
