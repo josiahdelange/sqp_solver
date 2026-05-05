@@ -81,16 +81,15 @@ struct NonLinearProblem {
             err.setZero(num_var);
             err[ii] = eps_grad;
 
-            double obj1 = 0.0;
-            double obj2 = 0.0;
+            Scalar obj1 = 0.0;
+            Scalar obj2 = 0.0;
             objective(x + err, obj1);
             objective(x - err, obj2);
             grad[ii] = (obj1 - obj2)/(2*eps_grad);
         }
     }
 
-    virtual void constraint_linearized(const Vector& x,
-        Vector& c, Vector& l, Vector& u, Matrix& Jc)
+    virtual void constraint_linearized(const Vector& x, Vector& c, Vector& l, Vector& u, Matrix& Jc)
     {
         constraint(x, c, l, u);
         Scalar eps_grad = 1e-12;
