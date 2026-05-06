@@ -20,6 +20,7 @@ struct sqp_settings_t {
     int max_iter = 100;
     int line_search_max_iter = 20;
     bool second_order_correction = false;
+    bool verbose = false;
     std::function<void(const SQP<Scalar>&)> iteration_callback;
 
     bool validate() {
@@ -103,7 +104,7 @@ struct NonLinearProblem {
                 Vector c2 = Vector::Zero(num_constr);
                 constraint(x + err, c1, l, u);
                 constraint(x - err, c2, l, u);
-                Jc(jj,ii) = (c1(jj) - c2(jj))/(2*eps_grad);
+                Jc(jj,ii) = (c1[jj] - c2[jj])/(2*eps_grad);
             }
         }
     }

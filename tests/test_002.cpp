@@ -4,13 +4,13 @@
 
 using namespace sqp;
 
-class ConstrainedRosenbrock2D: public NonLinearProblem<double>
+class MishraBirdFunction: public NonLinearProblem<double>
 {
 public:
     using Vector = sqp::NonLinearProblem<double>::Vector;
     using Matrix = sqp::NonLinearProblem<double>::Matrix;
 
-    ConstrainedRosenbrock2D()
+    MishraBirdFunction()
     {
         num_var = 2;
         num_constr = 1;
@@ -18,14 +18,18 @@ public:
 
     void objective(const Vector& decision, Scalar& obj) override
     {
-        obj = std::pow(1 - decision[0], 2) +
-            100*std::pow(decision[1] - std::pow(decision[0], 2), 2);
+        obj = std::sin(decision[1])*exp(std::pow(1 - std::cos(decision[0]), 2)) +
+            std::cos(decision[0])*exp(std::pow(1 - std::cos(decision[1]), 2)) +
+            std::pow(decision[0] - decision[1], 2);
     }
 
     void constraint(const Vector& decision, Vector& constraints,
         Vector& lower_bnd, Vector& upper_bnd) override
     {
-        constraints[0] = decision.squaredNorm() - 2;
+        Vector xy_vec = Vector::Zero(2);
+        xy_vec[0] = decision[0] + 5;
+        xy_vec[1] = decision[1] + 5;
+        constraints[0] = xy_vec.squaredNorm() - 25;
         lower_bnd[0] = -1*std::numeric_limits<double>::infinity();
         upper_bnd[0] = std::numeric_limits<double>::infinity();
     }
@@ -34,7 +38,7 @@ public:
 int main(int argc, char* argv[])
 {
     // Nonlinear problem
-    ConstrainedRosenbrock2D problem;
+    MishraBirdFunction problem;
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(2);
     Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(1);
 

@@ -21,6 +21,7 @@ SQP<T>::SQP() {
     _qp_solver.settings().adaptive_rho = true;
     _qp_solver.settings().adaptive_rho_interval = 50;
     _qp_solver.settings().alpha = 1.6;
+    _qp_solver.settings().verbose = false;
 
     _info.iter = 0;
     _info.qp_solver_iter;
@@ -94,12 +95,29 @@ void SQP<T>::run_solve(Problem& prob) {
             _settings.iteration_callback(*this);
         }
 
-        printf("SQP info:\n");
-        printf("  Solver iteration: %d\n", _info.iter);
-        printf("  QP iterations: %d\n", _info.qp_solver_iter);
-        printf("  Solver status: ");
-        if(termination_criteria(_x, prob)) {
-            _info.status = SOLVED;
+        if(_settings.verbose) {
+            printf("SQP info:\n");
+            printf("  Solver iteration: %d\n", _info.iter);
+            printf("  QP iterations: %d\n", _info.qp_solver_iter);
+            printf("  Solver status: ");
+            if(termination_criteria(_x, prob)) {
+                _info.status = SOLVED;
+                switch (_info.status) {
+                    case SOLVED:
+                        printf("SOLVED\n");
+                        break;
+                    case MAX_ITER_EXCEEDED:
+                        printf("MAX_ITER_EXCEEDED\n");
+                        break;
+                    case INVALID_SETTINGS:
+                        printf("INVALID_SETTINGS\n");
+                        break;
+                    default:
+                        printf("UNKNOWN\n");
+                        break;
+                }
+                break;
+            }
             switch (_info.status) {
                 case SOLVED:
                     printf("SOLVED\n");
@@ -114,21 +132,6 @@ void SQP<T>::run_solve(Problem& prob) {
                     printf("UNKNOWN\n");
                     break;
             }
-            break;
-        }
-        switch (_info.status) {
-            case SOLVED:
-                printf("SOLVED\n");
-                break;
-            case MAX_ITER_EXCEEDED:
-                printf("MAX_ITER_EXCEEDED\n");
-                break;
-            case INVALID_SETTINGS:
-                printf("INVALID_SETTINGS\n");
-                break;
-            default:
-                printf("UNKNOWN\n");
-                break;
         }
     }
     if(iter > _settings.max_iter) {

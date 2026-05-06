@@ -4,13 +4,13 @@
 
 using namespace sqp;
 
-class ConstrainedRosenbrock2D: public NonLinearProblem<double>
+class TownsendModifiedFunction: public NonLinearProblem<double>
 {
 public:
     using Vector = sqp::NonLinearProblem<double>::Vector;
     using Matrix = sqp::NonLinearProblem<double>::Matrix;
 
-    ConstrainedRosenbrock2D()
+    TownsendModifiedFunction()
     {
         num_var = 2;
         num_constr = 1;
@@ -18,14 +18,21 @@ public:
 
     void objective(const Vector& decision, Scalar& obj) override
     {
-        obj = std::pow(1 - decision[0], 2) +
-            100*std::pow(decision[1] - std::pow(decision[0], 2), 2);
+        obj = -1*std::pow(std::cos((decision[0] - 0.1)*decision[1]), 2) -
+            decision[0]*std::sin(3*decision[0] + decision[1]);
     }
 
     void constraint(const Vector& decision, Vector& constraints,
         Vector& lower_bnd, Vector& upper_bnd) override
     {
-        constraints[0] = decision.squaredNorm() - 2;
+        Vector xy_vec = Vector::Zero(2);
+        xy_vec[0] = decision[0];
+        xy_vec[1] = decision[1];
+        double t = std::atan2(decision[0], decision[1]);
+        double xy_limit = std::pow(2*std::cos(t) - (1.0/2.0)*std::cos(2*t) -
+            (1.0/4.0)*std::cos(3*t) - (1.0/8.0)*std::cos(4*t), 2) +
+            std::pow(2*std::sin(t), 2);
+        constraints[0] = decision.squaredNorm() - xy_limit;
         lower_bnd[0] = -1*std::numeric_limits<double>::infinity();
         upper_bnd[0] = std::numeric_limits<double>::infinity();
     }
@@ -34,13 +41,14 @@ public:
 int main(int argc, char* argv[])
 {
     // Nonlinear problem
-    ConstrainedRosenbrock2D problem;
+    TownsendModifiedFunction problem;
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(2);
     Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(1);
 
     // SQP solver initialization
     sqp::SQP<double> solver;
     solver.settings().max_iter = 100;
+    solver.settings().verbose = true;
     //solver.settings().line_search_max_iter = 10;
     //solver.settings().second_order_correction = true;
     // solver.settings().eta = 0.5;
