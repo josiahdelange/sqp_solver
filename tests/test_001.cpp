@@ -4,11 +4,11 @@
 
 using namespace sqp;
 
-class ConstrainedRosenbrock2D: public NonLinearProblem<double>
+class ConstrainedRosenbrock2D: public NonlinearProblem
 {
 public:
-    using Vector = sqp::NonLinearProblem<double>::Vector;
-    using Matrix = sqp::NonLinearProblem<double>::Matrix;
+    using Vector = sqp::NonlinearProblem::Vector;
+    using Matrix = sqp::NonlinearProblem::Matrix;
 
     ConstrainedRosenbrock2D()
     {
@@ -16,7 +16,7 @@ public:
         num_constr = 3;
     }
 
-    void objective(const Vector& decision, Scalar& obj) override
+    void objective(const Vector& decision, double& obj) override
     {
         obj = std::pow(1 - decision[0], 2) +
             100*std::pow(decision[1] - std::pow(decision[0], 2), 2);
@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
     Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(3);
 
     // SQP solver initialization
-    sqp::SQP<double> solver;
+    sqp::SQP solver;
     solver.settings().max_iter = 100;
     solver.settings().verbose = true;
     //solver.settings().line_search_max_iter = 10;

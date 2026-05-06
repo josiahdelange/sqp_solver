@@ -1,7 +1,6 @@
 #include <Eigen/Eigenvalues>
 #include <cmath>
 #include <iostream>
-#include "bfgs.h"
 #include "sqp.h"
 
 #ifndef SOLVER_ASSERT
@@ -10,8 +9,7 @@
 
 namespace sqp {
 
-template <typename T>
-SQP<T>::SQP() {
+SQP::SQP() {
     // TODO(mi): Performance strongly depends on QP solver settings, which is bad.
     _qp_solver.settings().warm_start = true;
     _qp_solver.settings().check_termination = 10;
@@ -28,15 +26,13 @@ SQP<T>::SQP() {
     _info.status = UNKNOWN;
 }
 
-template <typename T>
-void SQP<T>::solve(Problem& prob, const Vector& x0, const Vector& lambda0) {
+void SQP::solve(NonlinearProblem& prob, const Vector& x0, const Vector& lambda0) {
     _x = x0;
     _lambda = lambda0;
     run_solve(prob);
 }
 
-template <typename T>
-void SQP<T>::solve(Problem& prob) {
+void SQP::solve(NonlinearProblem& prob) {
     const int nx = prob.num_var;
     const int nc = prob.num_constr;
 
@@ -45,11 +41,10 @@ void SQP<T>::solve(Problem& prob) {
     run_solve(prob);
 }
 
-template <typename T>
-void SQP<T>::run_solve(Problem& prob) {
+void SQP::run_solve(NonlinearProblem& prob) {
     Vector p;         // search direction
     Vector p_lambda;  // dual search direction
-    Scalar alpha;     // step size
+    double alpha;     // step size
     prob.set_eps_grad(_settings.eps_grad);
 
     const int nx = prob.num_var;
@@ -142,9 +137,8 @@ void SQP<T>::run_solve(Problem& prob) {
     }
 }
 
-template <typename Matrix>
-bool is_posdef_eigen(Matrix H) {
-    Eigen::EigenSolver<Matrix> eigensolver(H);
+bool is_posdef_eigen(SQP::Matrix H) {
+    Eigen::EigenSolver<SQP::Matrix> eigensolver(H);
     for(int i = 0; i < eigensolver.eigenvalues().rows(); i++) {
         double v = eigensolver.eigenvalues()(i).real();
         if(v <= 0) {
@@ -163,8 +157,7 @@ bool is_posdef(Matrix H) {
     return true;
 }
 
-template <typename T>
-bool SQP<T>::termination_criteria(const Vector& x, Problem& prob) {
+bool SQP::termination_criteria(const Vector& x, NonlinearProblem& prob) {
     if(_primal_step_norm <= _settings.eps_prim && _dual_step_norm <= _settings.eps_dual &&
         max_constraint_violation(x, prob) <= _settings.eps_prim) {
         return true;
@@ -178,8 +171,7 @@ inline bool is_nan(const Eigen::MatrixBase<Derived>& x) {
     return x.array().isNaN().any();
 }
 
-template <typename T>
-void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
+void SQP::solve_qp(NonlinearProblem& prob, Vector& step, Vector& lambda) {
     /* QP from linearized NLP:
      * minimize     0.5 x'Px + q'x
      * subject to   l <= Ax + b <= u
@@ -208,12 +200,39 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
         _Hess.setIdentity();
     } else {
         _delta_grad_L += _grad_L;  // _delta_grad_L = _grad_L_prev - grad_L
-        bfgs::update(_Hess, _step_prev, _delta_grad_L);
+
+        // Damped Broyden–Fletcher–Goldfarb–Shanno (BFGS) update, implementing "Procedure
+        // 18.2 - Damped BFGS updating for SQP" from Numerical Optimization by Nocedal.
+        double sy, sr, sBs;
+        Eigen::VectorXd Bs, r;
+
+        Bs.noalias() = _Hess*_step_prev;
+        sBs = _step_prev.dot(Bs);
+        sy = _step_prev.dot(_delta_grad_L);
+
+        if (sy < 0.2 * sBs) {
+            // Damped update to enforce positive definite Hessian
+            double theta;
+            theta = 0.8*sBs/(sBs - sy);
+            r.noalias() = theta*_delta_grad_L + (1 - theta)*Bs;
+            sr = theta*sy + (1 - theta)*sBs;
+        } else {
+            // Unmodified BFGS
+            r = _delta_grad_L;
+            sr = sy;
+        }
+
+        if (sr < std::numeric_limits<double>::epsilon()) {
+            return;
+        }
+
+        _Hess.noalias() += -Bs * Bs.transpose() / sBs;
+        _Hess.noalias() += r * r.transpose() / sr;
     }
 
     if(!is_posdef(_Hess)) {
         std::cout << "Hessian not positive definite\n";
-        Scalar tau = 1e-3;
+        double tau = 1e-3;
         Vector v = Vector(prob.num_var);
         while (!is_posdef(_Hess)) {
             v.setConstant(tau);
@@ -248,10 +267,9 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
     // i.e. fallback to steepest descent of Lagrangian
 }
 
-template <typename T>
-bool SQP<T>::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const Vector& l,
+bool SQP::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const Vector& l,
                           const Vector& u, Vector& prim, Vector& dual) {
-    qp::QuadraticProblem<Scalar> _qp;
+    qp::QuadraticProblem _qp;
 
     _qp.P = &P;
     _qp.q = &q;
@@ -282,14 +300,13 @@ bool SQP<T>::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, con
     return true;
 }
 
-template <typename T>
-void SQP<T>::second_order_correction(Problem& prob, Vector& p, Vector& lambda) {
-    // Scalar mu, constr_l1, phi_l1;
+void SQP::second_order_correction(NonlinearProblem& prob, Vector& p, Vector& lambda) {
+    // double mu, constr_l1, phi_l1;
     // constr_l1 = constraint_norm(constr_, _l, _u);
     // mu = (_grad_obj.dot(p) + 0.5 * p.dot(_Hess * p)) / ((1 - _settings.rho) * constr_l1);
     // phi_l1 = _obj + mu * constr_l1;
 
-    // Scalar _objstep, constr_l1_step, phi_l1_step;
+    // double _objstep, constr_l1_step, phi_l1_step;
     // Vector _xstep = _x + p;
     // prob.objective(_xstep, _objstep);
     // constr_l1_step = constraint_norm(_xstep, prob);
@@ -315,14 +332,13 @@ void SQP<T>::second_order_correction(Problem& prob, Vector& p, Vector& lambda) {
         run_solve_qp(P, q, A, l, u, p, lambda);
     }
 }
-template <typename T>
-typename SQP<T>::Scalar SQP<T>::line_search(Problem& prob, const Vector& p) {
+
+double SQP::line_search(NonlinearProblem& prob, const Vector& p) {
     // Note: using members _obj and _grad_obj, which are updated in solve_qp().
+    double mu, phi_l1, Dp_phi_l1;
+    const double tau = _settings.tau;  // line search step decrease, 0 < tau < settings.tau
 
-    Scalar mu, phi_l1, Dp_phi_l1;
-    const Scalar tau = _settings.tau;  // line search step decrease, 0 < tau < settings.tau
-
-    Scalar constr_l1 = constraint_norm(_constr, _l, _u);
+    double constr_l1 = constraint_norm(_constr, _l, _u);
 
     // get mu from merit function model using hessian of Lagrangian instead
     mu = (_grad_obj.dot(p) + 0.5 * p.dot(_Hess * p)) / ((1 - _settings.rho) * constr_l1);
@@ -330,14 +346,14 @@ typename SQP<T>::Scalar SQP<T>::line_search(Problem& prob, const Vector& p) {
     phi_l1 = _obj + mu * constr_l1;
     Dp_phi_l1 = _grad_obj.dot(p) - mu * constr_l1;
 
-    Scalar alpha = 1.0;
+    double alpha = 1.0;
     int i;
     for(i = 1; i < _settings.line_search_max_iter; i++) {
-        Scalar _objstep;
+        double _objstep;
         Vector _xstep = _x + alpha * p;
         prob.objective(_xstep, _objstep);
 
-        Scalar phi_l1_step = _objstep + mu * constraint_norm(_xstep, prob);
+        double phi_l1_step = _objstep + mu * constraint_norm(_xstep, prob);
         if(phi_l1_step <= phi_l1 + alpha * _settings.eta * Dp_phi_l1) {
             // accept step
             break;
@@ -348,10 +364,9 @@ typename SQP<T>::Scalar SQP<T>::line_search(Problem& prob, const Vector& p) {
     return alpha;
 }
 
-template <typename T>
-typename SQP<T>::Scalar SQP<T>::constraint_norm(
+double SQP::constraint_norm(
     const Vector &constr, const Vector &l, const Vector &u) const {
-    Scalar c_l1 = DIV_BY_ZERO_REGUL;
+    double c_l1 = DIV_BY_ZERO_REGUL;
 
     // l <= c(x) <= u
     c_l1 += (l - constr).cwiseMax(0.0).sum();
@@ -360,19 +375,16 @@ typename SQP<T>::Scalar SQP<T>::constraint_norm(
     return c_l1;
 }
 
-template <typename T>
-typename SQP<T>::Scalar SQP<T>::constraint_norm(const Vector& x, Problem& prob) {
+double SQP::constraint_norm(const Vector& x, NonlinearProblem& prob) {
     // Note: uses members _constr, _l and _u as temporary
     prob.constraint(x, _constr, _l, _u);
 
     return constraint_norm(_constr, _l, _u);
 }
 
-template <typename T>
-typename SQP<T>::Scalar SQP<T>::max_constraint_violation(const Vector& x, Problem& prob) {
+double SQP::max_constraint_violation(const Vector& x, NonlinearProblem& prob) {
     // Note: uses members _constr, _l and _u as temporary
-
-    Scalar c_max = 0;
+    double c_max = 0;
     prob.constraint(x, _constr, _l, _u);
 
     // l <= c(x) <= u
@@ -383,8 +395,5 @@ typename SQP<T>::Scalar SQP<T>::max_constraint_violation(const Vector& x, Proble
 
     return c_max;
 }
-
-template class SQP<double>;
-template class SQP<float>;
 
 }  // namespace sqp

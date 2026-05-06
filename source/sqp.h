@@ -7,22 +7,20 @@
 
 namespace sqp {
 
-template <typename T>
 class SQP;
 
-template <typename Scalar>
 struct sqp_settings_t {
-    Scalar tau = 0.5;        /**< line search iteration decrease, 0 < tau < 1 */
-    Scalar eta = 0.25;       /**< line search parameter, 0 < eta < 1 */
-    Scalar rho = 0.5;        /**< line search parameter, 0 < rho < 1 */
-    Scalar eps_prim = 1e-4;  /**< primal step termination threshold, eps_prim > 0 */
-    Scalar eps_dual = 1e-4;  /**< dual step termination threshold, eps_dual > 0 */
-    Scalar eps_grad = 1e-12; /**< numerical gradient finite difference step size, eps_grad > 0 */
+    double tau = 0.5;        /**< line search iteration decrease, 0 < tau < 1 */
+    double eta = 0.25;       /**< line search parameter, 0 < eta < 1 */
+    double rho = 0.5;        /**< line search parameter, 0 < rho < 1 */
+    double eps_prim = 1e-4;  /**< primal step termination threshold, eps_prim > 0 */
+    double eps_dual = 1e-4;  /**< dual step termination threshold, eps_dual > 0 */
+    double eps_grad = 1e-12; /**< numerical gradient finite difference step size, eps_grad > 0 */
     int max_iter = 100;
     int line_search_max_iter = 20;
     bool second_order_correction = false;
     bool verbose = false;
-    std::function<void(const SQP<Scalar>&)> iteration_callback;
+    std::function<void(const SQP&)> iteration_callback;
 
     bool validate() {
         bool valid;
@@ -40,36 +38,21 @@ struct Info {
     Status status;
 };
 
-template <typename SCALAR_TYPE = double>
-class NonLinearProblem {
+class NonlinearProblem {
 public:
-    using Scalar = SCALAR_TYPE;
-    using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+    using Vector = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 
     int num_var;
     int num_constr;
     double _eps_grad;
-    Vector _x_lower;
-    Vector _x_upper;
 
     void set_eps_grad(const double& eps_grad) { _eps_grad = eps_grad; }
-    void set_lower_bound(const Vector& x_lower) { _x_lower = x_lower; }
-    void set_upper_bound(const Vector& x_upper) { _x_upper = x_upper; }
 
-    inline void eps_grad() { return _eps_grad; }
-    inline const void eps_grad() const { return _eps_grad; }
-
-    inline void lower_bound() { return _x_lower; }
-    inline const void lower_bound() const { return _x_lower; }
-
-    inline void upper_bound() { return _x_upper; }
-    inline const void upper_bound() const { return _x_upper; }
-
-    virtual void objective(const Vector& x, Scalar& obj) = 0;
+    virtual void objective(const Vector& x, double& obj) = 0;
     virtual void constraint(const Vector& x, Vector& c, Vector& l, Vector& u) = 0;
 
-    virtual void objective_linearized(const Vector& x, Scalar& obj, Vector& grad)
+    virtual void objective_linearized(const Vector& x, double& obj, Vector& grad)
     {
         objective(x, obj);
         Vector err = Vector::Zero(num_var);
@@ -77,8 +60,8 @@ public:
             err.setZero(num_var);
             err[ii] = _eps_grad;
 
-            Scalar obj1 = 0.0;
-            Scalar obj2 = 0.0;
+            double obj1 = 0.0;
+            double obj2 = 0.0;
             objective(x + err, obj1);
             objective(x - err, obj2);
             grad[ii] = (obj1 - obj2)/(2*_eps_grad);
@@ -109,17 +92,13 @@ public:
  * minimize     f(x)
  * subject to   l <= c(x) <= u
  */
-template <typename SCALAR_TYPE>
 class SQP {
 public:
-    using Scalar = SCALAR_TYPE;
-    using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
-    using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
-    using Problem = NonLinearProblem<Scalar>;
-    using Settings = sqp_settings_t<Scalar>;
+    using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+    using Vector = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 
     // Constants
-    static constexpr Scalar DIV_BY_ZERO_REGUL = std::numeric_limits<Scalar>::epsilon();
+    static constexpr double DIV_BY_ZERO_REGUL = std::numeric_limits<double>::epsilon();
 
     // enforce 16 byte alignment
     // https://eigen.tuxfamily.org/dox/group__TopicStructHavingEigenMembers.html
@@ -128,8 +107,8 @@ public:
     SQP();
     ~SQP() = default;
 
-    void solve(Problem& prob, const Vector& x0, const Vector& lambda0);
-    void solve(Problem& prob);
+    void solve(NonlinearProblem& prob, const Vector& x0, const Vector& lambda0);
+    void solve(NonlinearProblem& prob);
 
     inline const Vector& primal_solution() const { return _x; }
     inline Vector& primal_solution() { return _x; }
@@ -137,34 +116,34 @@ public:
     inline const Vector& dual_solution() const { return _lambda; }
     inline Vector& dual_solution() { return _lambda; }
 
-    inline const Settings& settings() const { return _settings; }
-    inline Settings& settings() { return _settings; }
+    inline const sqp_settings_t& settings() const { return _settings; }
+    inline sqp_settings_t& settings() { return _settings; }
 
     inline const Info& info() const { return _info; }
     inline Info& info() { return _info; }
 
     // private:
-    void run_solve(Problem& prob);
+    void run_solve(NonlinearProblem& prob);
 
-    bool termination_criteria(const Vector& x, Problem& prob);
-    void solve_qp(Problem& prob, Vector& p, Vector& lambda);
+    bool termination_criteria(const Vector& x, NonlinearProblem& prob);
+    void solve_qp(NonlinearProblem& prob, Vector& p, Vector& lambda);
     bool run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const Vector& l,
                       const Vector& u, Vector& prim, Vector& dual);
 
     /** Second order correction by solving the same QP with corrected constraints. */
-    void second_order_correction(Problem& prob, Vector& p, Vector& lambda);
+    void second_order_correction(NonlinearProblem& prob, Vector& p, Vector& lambda);
 
     /** Line search in direction p using l1 merit function. */
-    Scalar line_search(Problem& prob, const Vector& p);
+    double line_search(NonlinearProblem& prob, const Vector& p);
 
     /** L1 norm of constraint violation */
-    Scalar constraint_norm(const Vector& x, Problem& prob);
+    double constraint_norm(const Vector& x, NonlinearProblem& prob);
 
     /** L1 norm of constraint violation, for given constraint evaluation */
-    Scalar constraint_norm(const Vector &constr, const Vector &l, const Vector &u) const;
+    double constraint_norm(const Vector &constr, const Vector &l, const Vector &u) const;
 
     /** L_inf norm of constraint violation */
-    Scalar max_constraint_violation(const Vector& x, Problem& prob);
+    double max_constraint_violation(const Vector& x, NonlinearProblem& prob);
 
     // Solver state variables
     Vector _x;
@@ -175,21 +154,19 @@ public:
 
     Matrix _Hess;
     Vector _grad_obj;
-    Scalar _obj;
+    double _obj;
     Matrix _Jac_constr;
     Vector _constr;
     Vector _l, _u;
 
     // info
-    Scalar _dual_step_norm;
-    Scalar _primal_step_norm;
+    double _dual_step_norm;
+    double _primal_step_norm;
 
-    Settings _settings;
+    sqp_settings_t _settings;
     Info _info;
 
-    qp::QPSolver<Scalar> _qp_solver;
+    qp::QPSolver _qp_solver;
 };
-
-extern template class SQP<double>;
 
 }  // namespace sqp

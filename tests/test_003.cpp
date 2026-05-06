@@ -4,11 +4,11 @@
 
 using namespace sqp;
 
-class TownsendModifiedFunction: public NonLinearProblem<double>
+class TownsendModifiedFunction: public NonlinearProblem
 {
 public:
-    using Vector = sqp::NonLinearProblem<double>::Vector;
-    using Matrix = sqp::NonLinearProblem<double>::Matrix;
+    using Vector = sqp::NonlinearProblem::Vector;
+    using Matrix = sqp::NonlinearProblem::Matrix;
 
     TownsendModifiedFunction()
     {
@@ -16,7 +16,7 @@ public:
         num_constr = 1;
     }
 
-    void objective(const Vector& decision, Scalar& obj) override
+    void objective(const Vector& decision, double& obj) override
     {
         obj = -1*std::pow(std::cos((decision[0] - 0.1)*decision[1]), 2) -
             decision[0]*std::sin(3*decision[0] + decision[1]);
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
     Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(1);
 
     // SQP solver initialization
-    sqp::SQP<double> solver;
+    sqp::SQP solver;
     solver.settings().max_iter = 100;
     solver.settings().verbose = true;
     //solver.settings().line_search_max_iter = 10;

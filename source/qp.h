@@ -16,15 +16,14 @@ namespace qp {
  *  minimize        0.5 x' P x + q' x
  *  subject to      l <= A x <= u
  */
-template <typename Scalar = double>
 struct QuadraticProblem {
-    using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using Vector = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 #ifdef QP_SOLVER_SPARSE
-    using Matrix = Eigen::SparseMatrix<Scalar>;
+    using Matrix = Eigen::SparseMatrix<double>;
     Eigen::Matrix<int, Eigen::Dynamic, 1> P_col_nnz;
     Eigen::Matrix<int, Eigen::Dynamic, 1> A_col_nnz;
 #else
-    using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
 #endif
     const Matrix *P;
     const Vector *q;
@@ -33,20 +32,19 @@ struct QuadraticProblem {
     const Vector *u;
 };
 
-template <typename Scalar>
 struct QPSolverSettings {
-    Scalar rho = 1e-1;          /**< ADMM rho step, 0 < rho */
-    Scalar sigma = 1e-6;        /**< ADMM sigma step, 0 < sigma, (small) */
-    Scalar alpha = 1.0;         /**< ADMM overrelaxation parameter, 0 < alpha < 2,
+    double rho = 1e-1;          /**< ADMM rho step, 0 < rho */
+    double sigma = 1e-6;        /**< ADMM sigma step, 0 < sigma, (small) */
+    double alpha = 1.0;         /**< ADMM overrelaxation parameter, 0 < alpha < 2,
                                      values in [1.5, 1.8] give good results (empirically) */
-    Scalar eps_rel = 1e-3;      /**< Relative tolerance for termination, 0 < eps_rel */
-    Scalar eps_abs = 1e-3;      /**< Absolute tolerance for termination, 0 < eps_abs */
+    double eps_rel = 1e-3;      /**< Relative tolerance for termination, 0 < eps_rel */
+    double eps_abs = 1e-3;      /**< Absolute tolerance for termination, 0 < eps_abs */
     int max_iter = 1000;        /**< Maximal number of iteration, 0 < max_iter */
     int check_termination = 25; /**< Check termination after every Nth iteration, 0 (disabled) or 0
                                    < check_termination */
     bool warm_start = false;    /**< Warm start solver, reuses previous x,z,y */
     bool adaptive_rho = false;  /**< Adapt rho to optimal estimate */
-    Scalar adaptive_rho_tolerance =
+    double adaptive_rho_tolerance =
         5; /**< Minimal for rho update factor, 1 < adaptive_rho_tolerance */
     int adaptive_rho_interval = 25; /**< change rho every Nth iteration, 0 < adaptive_rho_interval,
                                          set equal to check_termination to save computation  */
@@ -69,14 +67,13 @@ struct QPSolverSettings {
 
 typedef enum { SOLVED, MAX_ITER_EXCEEDED, UNSOLVED, NUMERICAL_ISSUES, UNINITIALIZED } QPSolverStatus;
 
-template <typename Scalar>
 struct QPSolverInfo {
     QPSolverStatus status = UNINITIALIZED; /**< Solver status */
     int iter = 0;                          /**< Number of iterations */
     int rho_updates = 0;                   /**< Number of rho updates (factorizations) */
-    Scalar rho_estimate = 0;               /**< Last rho estimate */
-    Scalar res_prim = 0;                   /**< Primal residual */
-    Scalar res_dual = 0;                   /**< Dual residual */
+    double rho_estimate = 0;               /**< Last rho estimate */
+    double res_prim = 0;                   /**< Primal residual */
+    double res_dual = 0;                   /**< Dual residual */
 
 #ifdef QP_SOLVER_PRINTING
     void print() const {
@@ -115,30 +112,28 @@ struct QPSolverInfo {
  *    x element of R^n
  *    Ax element of R^m
  */
-template <typename SCALAR>
 class QPSolver {
    public:
-    using Scalar = SCALAR;
-    using QP = QuadraticProblem<Scalar>;
-    using Vector = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+    using QP = QuadraticProblem;
+    using Vector = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 #ifdef QP_SOLVER_SPARSE
-    using Matrix = Eigen::SparseMatrix<Scalar, Eigen::ColMajor>;
+    using Matrix = Eigen::SparseMatrix<double, Eigen::ColMajor>;
     using LinearSolver = Eigen::SimplicialLDLT<Matrix, Eigen::Lower>;
 #else
-    using Matrix = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
     using LinearSolver = Eigen::LDLT<Matrix, Eigen::Lower>;
 #endif
-    using Settings = QPSolverSettings<Scalar>;
-    using Info = QPSolverInfo<Scalar>;
+    using Settings = QPSolverSettings;
+    using Info = QPSolverInfo;
 
     enum { INEQUALITY_CONSTRAINT, EQUALITY_CONSTRAINT, LOOSE_BOUNDS } ConstraintType;
 
-    static constexpr Scalar RHO_MIN = 1e-6;
-    static constexpr Scalar RHO_MAX = 1e+6;
-    static constexpr Scalar RHO_TOL = 1e-4;
-    static constexpr Scalar RHO_EQ_FACTOR = 1e+3;
-    static constexpr Scalar LOOSE_BOUNDS_THRESH = 1e+16;
-    static constexpr Scalar DIV_BY_ZERO_REGUL = std::numeric_limits<Scalar>::epsilon();
+    static constexpr double RHO_MIN = 1e-6;
+    static constexpr double RHO_MAX = 1e+6;
+    static constexpr double RHO_TOL = 1e-4;
+    static constexpr double RHO_EQ_FACTOR = 1e+3;
+    static constexpr double LOOSE_BOUNDS_THRESH = 1e+16;
+    static constexpr double DIV_BY_ZERO_REGUL = std::numeric_limits<double>::epsilon();
 
     // enforce 16 byte alignment
     // https://eigen.tuxfamily.org/dox/group__TopicStructHavingEigenMembers.html
@@ -201,13 +196,13 @@ class QPSolver {
     void box_projection(Vector &z, const Vector &l, const Vector &u);
 
     void constr_type_init(const QP &qp);
-    void rho_vec_update(Scalar rho0);
+    void rho_vec_update(double rho0);
     void update_state(const QP &qp);
-    Scalar rho_estimate(const Scalar rho0, const QP &qp) const;
-    Scalar eps_prim(const QP &qp) const;
-    Scalar eps_dual(const QP &qp) const;
-    Scalar residual_prim(const QP &qp) const;
-    Scalar residual_dual(const QP &qp) const;
+    double rho_estimate(const double rho0, const QP &qp) const;
+    double eps_prim(const QP &qp) const;
+    double eps_dual(const QP &qp) const;
+    double residual_prim(const QP &qp) const;
+    double residual_dual(const QP &qp) const;
 
     bool termination_criteria(const QP &qp);
 
@@ -228,16 +223,16 @@ class QPSolver {
     Vector z_prev;
     Vector rho_vec;
     Vector rho_inv_vec;
-    Scalar rho;
+    double rho;
 
     Vector rhs;
     Vector x_tilde_nu;
 
     // State
-    Scalar res_prim;
-    Scalar res_dual;
-    Scalar max_Ax_z_norm_;
-    Scalar max_Px_ATy_q_norm_;
+    double res_prim;
+    double res_dual;
+    double max_Ax_z_norm_;
+    double max_Px_ATy_q_norm_;
 
     Eigen::VectorXi constr_type; /**< constraint type classification */
 
@@ -247,8 +242,5 @@ class QPSolver {
     Matrix kkt_mat;
     LinearSolver linear_solver;
 };
-
-extern template class QPSolver<double>;
-extern template class QPSolver<float>;
 
 } // namespace qp
