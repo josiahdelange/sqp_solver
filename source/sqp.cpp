@@ -26,7 +26,8 @@ SQP::SQP() {
     _info.status = UNKNOWN;
 }
 
-void SQP::solve(NonlinearProblem& prob, const Vector& x0, const Vector& lambda0) {
+void SQP::solve(NonlinearProblem& prob, const Eigen::VectorXd& x0,
+    const Eigen::VectorXd& lambda0) {
     _x = x0;
     _lambda = lambda0;
     run_solve(prob);
@@ -42,8 +43,8 @@ void SQP::solve(NonlinearProblem& prob) {
 }
 
 void SQP::run_solve(NonlinearProblem& prob) {
-    Vector p;         // search direction
-    Vector p_lambda;  // dual search direction
+    Eigen::VectorXd p;         // search direction
+    Eigen::VectorXd p_lambda;  // dual search direction
     double alpha;     // step size
     prob.set_eps_grad(_settings.eps_grad);
 
@@ -137,8 +138,9 @@ void SQP::run_solve(NonlinearProblem& prob) {
     }
 }
 
-bool is_posdef_eigen(SQP::Matrix H) {
-    Eigen::EigenSolver<SQP::Matrix> eigensolver(H);
+template <typename Matrix>
+bool is_posdef_eigen(Matrix H) {
+    Eigen::EigenSolver<Matrix> eigensolver(H);
     for(int i = 0; i < eigensolver.eigenvalues().rows(); i++) {
         double v = eigensolver.eigenvalues()(i).real();
         if(v <= 0) {
@@ -157,7 +159,7 @@ bool is_posdef(Matrix H) {
     return true;
 }
 
-bool SQP::termination_criteria(const Vector& x, NonlinearProblem& prob) {
+bool SQP::termination_criteria(const Eigen::VectorXd& x, NonlinearProblem& prob) {
     if(_primal_step_norm <= _settings.eps_prim && _dual_step_norm <= _settings.eps_dual &&
         max_constraint_violation(x, prob) <= _settings.eps_prim) {
         return true;
@@ -171,7 +173,7 @@ inline bool is_nan(const Eigen::MatrixBase<Derived>& x) {
     return x.array().isNaN().any();
 }
 
-void SQP::solve_qp(NonlinearProblem& prob, Vector& step, Vector& lambda) {
+void SQP::solve_qp(NonlinearProblem& prob, Eigen::VectorXd& step, Eigen::VectorXd& lambda) {
     /* QP from linearized NLP:
      * minimize     0.5 x'Px + q'x
      * subject to   l <= Ax + b <= u
@@ -233,7 +235,7 @@ void SQP::solve_qp(NonlinearProblem& prob, Vector& step, Vector& lambda) {
     if(!is_posdef(_Hess)) {
         std::cout << "Hessian not positive definite\n";
         double tau = 1e-3;
-        Vector v = Vector(prob.num_var);
+        Eigen::VectorXd v = Eigen::VectorXd(prob.num_var);
         while (!is_posdef(_Hess)) {
             v.setConstant(tau);
             _Hess += v.asDiagonal();
@@ -250,11 +252,11 @@ void SQP::solve_qp(NonlinearProblem& prob, Vector& step, Vector& lambda) {
     // Constraints
     // from   l <= Ax + b <= u
     // to   l-b <= Ax     <= u-b
-    Vector l = _l - _constr;
-    Vector u = _u - _constr;
-    Matrix& A = _Jac_constr;
-    Matrix& P = _Hess;
-    Vector& q = _grad_obj;
+    Eigen::VectorXd l = _l - _constr;
+    Eigen::VectorXd u = _u - _constr;
+    Eigen::MatrixXd& A = _Jac_constr;
+    Eigen::MatrixXd& P = _Hess;
+    Eigen::VectorXd& q = _grad_obj;
 
     // solve the QP
     run_solve_qp(P, q, A, l, u, step, lambda);
@@ -267,8 +269,9 @@ void SQP::solve_qp(NonlinearProblem& prob, Vector& step, Vector& lambda) {
     // i.e. fallback to steepest descent of Lagrangian
 }
 
-bool SQP::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const Vector& l,
-                          const Vector& u, Vector& prim, Vector& dual) {
+bool SQP::run_solve_qp(const Eigen::MatrixXd& P,
+    const Eigen::VectorXd& q, const Eigen::MatrixXd& A, const Eigen::VectorXd& l,
+    const Eigen::VectorXd& u, Eigen::VectorXd& prim, Eigen::VectorXd& dual) {
     qp::QuadraticProblem _qp;
 
     _qp.P = &P;
@@ -300,14 +303,15 @@ bool SQP::run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const 
     return true;
 }
 
-void SQP::second_order_correction(NonlinearProblem& prob, Vector& p, Vector& lambda) {
+void SQP::second_order_correction(NonlinearProblem& prob,
+    Eigen::VectorXd& p, Eigen::VectorXd& lambda) {
     // double mu, constr_l1, phi_l1;
     // constr_l1 = constraint_norm(constr_, _l, _u);
     // mu = (_grad_obj.dot(p) + 0.5 * p.dot(_Hess * p)) / ((1 - _settings.rho) * constr_l1);
     // phi_l1 = _obj + mu * constr_l1;
 
     // double _objstep, constr_l1_step, phi_l1_step;
-    // Vector _xstep = _x + p;
+    // Eigen::VectorXd _xstep = _x + p;
     // prob.objective(_xstep, _objstep);
     // constr_l1_step = constraint_norm(_xstep, prob);
     // phi_l1_step = _objstep + mu * constr_l1_step;
@@ -316,24 +320,24 @@ void SQP::second_order_correction(NonlinearProblem& prob, Vector& p, Vector& lam
     //        constr_l1_step, constr_l1);
     // if(phi_l1_step >= phi_l1 && constr_l1_step >= constr_l1) {
     {
-        Vector _xstep = _x + p;
-        Vector constr_step(_constr.rows());
+        Eigen::VectorXd _xstep = _x + p;
+        Eigen::VectorXd constr_step(_constr.rows());
         prob.constraint(_xstep, constr_step, _l, _u);
 
-        Matrix& A = _Jac_constr;
-        Matrix& P = _Hess;
-        Vector& q = _grad_obj;
+        Eigen::MatrixXd& A = _Jac_constr;
+        Eigen::MatrixXd& P = _Hess;
+        Eigen::VectorXd& q = _grad_obj;
 
-        Vector d = constr_step - A * p;
-        Vector l = _l - d;
-        Vector u = _u - d;
+        Eigen::VectorXd d = constr_step - A * p;
+        Eigen::VectorXd l = _l - d;
+        Eigen::VectorXd u = _u - d;
 
         // TODO: only l and u change, possible to update QP solver more efficiently
         run_solve_qp(P, q, A, l, u, p, lambda);
     }
 }
 
-double SQP::line_search(NonlinearProblem& prob, const Vector& p) {
+double SQP::line_search(NonlinearProblem& prob, const Eigen::VectorXd& p) {
     // Note: using members _obj and _grad_obj, which are updated in solve_qp().
     double mu, phi_l1, Dp_phi_l1;
     const double tau = _settings.tau;  // line search step decrease, 0 < tau < settings.tau
@@ -350,7 +354,7 @@ double SQP::line_search(NonlinearProblem& prob, const Vector& p) {
     int i;
     for(i = 1; i < _settings.line_search_max_iter; i++) {
         double _objstep;
-        Vector _xstep = _x + alpha * p;
+        Eigen::VectorXd _xstep = _x + alpha * p;
         prob.objective(_xstep, _objstep);
 
         double phi_l1_step = _objstep + mu * constraint_norm(_xstep, prob);
@@ -364,8 +368,8 @@ double SQP::line_search(NonlinearProblem& prob, const Vector& p) {
     return alpha;
 }
 
-double SQP::constraint_norm(
-    const Vector &constr, const Vector &l, const Vector &u) const {
+double SQP::constraint_norm( const Eigen::VectorXd &constr,
+    const Eigen::VectorXd &l, const Eigen::VectorXd &u) const {
     double c_l1 = DIV_BY_ZERO_REGUL;
 
     // l <= c(x) <= u
@@ -375,14 +379,14 @@ double SQP::constraint_norm(
     return c_l1;
 }
 
-double SQP::constraint_norm(const Vector& x, NonlinearProblem& prob) {
+double SQP::constraint_norm(const Eigen::VectorXd& x, NonlinearProblem& prob) {
     // Note: uses members _constr, _l and _u as temporary
     prob.constraint(x, _constr, _l, _u);
 
     return constraint_norm(_constr, _l, _u);
 }
 
-double SQP::max_constraint_violation(const Vector& x, NonlinearProblem& prob) {
+double SQP::max_constraint_violation(const Eigen::VectorXd& x, NonlinearProblem& prob) {
     // Note: uses members _constr, _l and _u as temporary
     double c_max = 0;
     prob.constraint(x, _constr, _l, _u);

@@ -65,7 +65,13 @@ struct QPSolverSettings {
 #endif
 };
 
-typedef enum { SOLVED, MAX_ITER_EXCEEDED, UNSOLVED, NUMERICAL_ISSUES, UNINITIALIZED } QPSolverStatus;
+typedef enum {
+    SOLVED,
+    MAX_ITER_EXCEEDED,
+    UNSOLVED,
+    NUMERICAL_ISSUES,
+    UNINITIALIZED
+} QPSolverStatus;
 
 struct QPSolverInfo {
     QPSolverStatus status = UNINITIALIZED; /**< Solver status */
@@ -115,12 +121,12 @@ struct QPSolverInfo {
 class QPSolver {
    public:
     using QP = QuadraticProblem;
-    using Vector = Eigen::Matrix<double, Eigen::Dynamic, 1>;
+    using Vector = Eigen::VectorXd;
 #ifdef QP_SOLVER_SPARSE
     using Matrix = Eigen::SparseMatrix<double, Eigen::ColMajor>;
     using LinearSolver = Eigen::SimplicialLDLT<Matrix, Eigen::Lower>;
 #else
-    using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+    using Matrix = Eigen::MatrixXd;
     using LinearSolver = Eigen::LDLT<Matrix, Eigen::Lower>;
 #endif
     using Settings = QPSolverSettings;

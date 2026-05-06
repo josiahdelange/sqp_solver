@@ -7,25 +7,22 @@ using namespace sqp;
 class TownsendModifiedFunction: public NonlinearProblem
 {
 public:
-    using Vector = sqp::NonlinearProblem::Vector;
-    using Matrix = sqp::NonlinearProblem::Matrix;
-
     TownsendModifiedFunction()
     {
         num_var = 2;
         num_constr = 1;
     }
 
-    void objective(const Vector& decision, double& obj) override
+    void objective(const Eigen::VectorXd& decision, double& obj) override
     {
         obj = -1*std::pow(std::cos((decision[0] - 0.1)*decision[1]), 2) -
             decision[0]*std::sin(3*decision[0] + decision[1]);
     }
 
-    void constraint(const Vector& decision, Vector& constraints,
-        Vector& lower_bnd, Vector& upper_bnd) override
+    void constraint(const Eigen::VectorXd& decision, Eigen::VectorXd& constraints,
+        Eigen::VectorXd& lower_bnd, Eigen::VectorXd& upper_bnd) override
     {
-        Vector xy_vec = Vector::Zero(2);
+        Eigen::VectorXd xy_vec = Eigen::VectorXd::Zero(2);
         xy_vec[0] = decision[0];
         xy_vec[1] = decision[1];
         double t = std::atan2(decision[0], decision[1]);

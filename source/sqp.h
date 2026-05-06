@@ -15,7 +15,7 @@ struct sqp_settings_t {
     double rho = 0.5;        /**< line search parameter, 0 < rho < 1 */
     double eps_prim = 1e-4;  /**< primal step termination threshold, eps_prim > 0 */
     double eps_dual = 1e-4;  /**< dual step termination threshold, eps_dual > 0 */
-    double eps_grad = 1e-12; /**< numerical gradient finite difference step size, eps_grad > 0 */
+    double eps_grad = 1e-12; /**< gradient finite difference step size, eps_grad > 0 */
     int max_iter = 100;
     int line_search_max_iter = 20;
     bool second_order_correction = false;
@@ -40,22 +40,21 @@ struct Info {
 
 class NonlinearProblem {
 public:
-    using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
-    using Vector = Eigen::Matrix<double, Eigen::Dynamic, 1>;
-
     int num_var;
     int num_constr;
     double _eps_grad;
 
     void set_eps_grad(const double& eps_grad) { _eps_grad = eps_grad; }
 
-    virtual void objective(const Vector& x, double& obj) = 0;
-    virtual void constraint(const Vector& x, Vector& c, Vector& l, Vector& u) = 0;
+    virtual void objective(const Eigen::VectorXd& x, double& obj) = 0;
+    virtual void constraint(const Eigen::VectorXd& x, Eigen::VectorXd& c,
+        Eigen::VectorXd& l, Eigen::VectorXd& u) = 0;
 
-    virtual void objective_linearized(const Vector& x, double& obj, Vector& grad)
+    virtual void objective_linearized(const Eigen::VectorXd& x,
+        double& obj, Eigen::VectorXd& grad)
     {
         objective(x, obj);
-        Vector err = Vector::Zero(num_var);
+        Eigen::VectorXd err = Eigen::VectorXd::Zero(num_var);
         for(int ii = 0; ii < num_var; ii++) {
             err.setZero(num_var);
             err[ii] = _eps_grad;
@@ -68,18 +67,18 @@ public:
         }
     }
 
-    virtual void constraint_linearized(const Vector& x, Vector& c,
-        Vector& l, Vector& u, Matrix& Jc)
+    virtual void constraint_linearized(const Eigen::VectorXd& x, Eigen::VectorXd& c,
+        Eigen::VectorXd& l, Eigen::VectorXd& u, Eigen::MatrixXd& Jc)
     {
         constraint(x, c, l, u);
-        Vector err = Vector::Zero(num_var);
+        Eigen::VectorXd err = Eigen::VectorXd::Zero(num_var);
         for(int jj = 0; jj < num_constr; jj++) {
             for(int ii = 0; ii < num_var; ii++) {
                 err.setZero(num_var);
                 err[ii] = _eps_grad;
 
-                Vector c1 = Vector::Zero(num_constr);
-                Vector c2 = Vector::Zero(num_constr);
+                Eigen::VectorXd c1 = Eigen::VectorXd::Zero(num_constr);
+                Eigen::VectorXd c2 = Eigen::VectorXd::Zero(num_constr);
                 constraint(x + err, c1, l, u);
                 constraint(x - err, c2, l, u);
                 Jc(jj,ii) = (c1[jj] - c2[jj])/(2*_eps_grad);
@@ -94,9 +93,6 @@ public:
  */
 class SQP {
 public:
-    using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
-    using Vector = Eigen::Matrix<double, Eigen::Dynamic, 1>;
-
     // Constants
     static constexpr double DIV_BY_ZERO_REGUL = std::numeric_limits<double>::epsilon();
 
@@ -107,14 +103,15 @@ public:
     SQP();
     ~SQP() = default;
 
-    void solve(NonlinearProblem& prob, const Vector& x0, const Vector& lambda0);
+    void solve(NonlinearProblem& prob, 
+        const Eigen::VectorXd& x0, const Eigen::VectorXd& lambda0);
     void solve(NonlinearProblem& prob);
 
-    inline const Vector& primal_solution() const { return _x; }
-    inline Vector& primal_solution() { return _x; }
+    inline const Eigen::VectorXd& primal_solution() const { return _x; }
+    inline Eigen::VectorXd& primal_solution() { return _x; }
 
-    inline const Vector& dual_solution() const { return _lambda; }
-    inline Vector& dual_solution() { return _lambda; }
+    inline const Eigen::VectorXd& dual_solution() const { return _lambda; }
+    inline Eigen::VectorXd& dual_solution() { return _lambda; }
 
     inline const sqp_settings_t& settings() const { return _settings; }
     inline sqp_settings_t& settings() { return _settings; }
@@ -125,39 +122,42 @@ public:
     // private:
     void run_solve(NonlinearProblem& prob);
 
-    bool termination_criteria(const Vector& x, NonlinearProblem& prob);
-    void solve_qp(NonlinearProblem& prob, Vector& p, Vector& lambda);
-    bool run_solve_qp(const Matrix& P, const Vector& q, const Matrix& A, const Vector& l,
-                      const Vector& u, Vector& prim, Vector& dual);
+    bool termination_criteria(const Eigen::VectorXd& x, NonlinearProblem& prob);
+    void solve_qp(NonlinearProblem& prob, Eigen::VectorXd& p, Eigen::VectorXd& lambda);
+    bool run_solve_qp(const Eigen::MatrixXd& P, const Eigen::VectorXd& q,
+        const Eigen::MatrixXd& A, const Eigen::VectorXd& l,
+        const Eigen::VectorXd& u, Eigen::VectorXd& prim, Eigen::VectorXd& dual);
 
     /** Second order correction by solving the same QP with corrected constraints. */
-    void second_order_correction(NonlinearProblem& prob, Vector& p, Vector& lambda);
+    void second_order_correction(NonlinearProblem& prob,
+        Eigen::VectorXd& p, Eigen::VectorXd& lambda);
 
     /** Line search in direction p using l1 merit function. */
-    double line_search(NonlinearProblem& prob, const Vector& p);
+    double line_search(NonlinearProblem& prob, const Eigen::VectorXd& p);
 
     /** L1 norm of constraint violation */
-    double constraint_norm(const Vector& x, NonlinearProblem& prob);
+    double constraint_norm(const Eigen::VectorXd& x, NonlinearProblem& prob);
 
     /** L1 norm of constraint violation, for given constraint evaluation */
-    double constraint_norm(const Vector &constr, const Vector &l, const Vector &u) const;
+    double constraint_norm(const Eigen::VectorXd &constr,
+        const Eigen::VectorXd &l, const Eigen::VectorXd &u) const;
 
     /** L_inf norm of constraint violation */
-    double max_constraint_violation(const Vector& x, NonlinearProblem& prob);
+    double max_constraint_violation(const Eigen::VectorXd& x, NonlinearProblem& prob);
 
     // Solver state variables
-    Vector _x;
-    Vector _lambda;
-    Vector _step_prev;
-    Vector _grad_L;
-    Vector _delta_grad_L;
+    Eigen::VectorXd _x;
+    Eigen::VectorXd _lambda;
+    Eigen::VectorXd _step_prev;
+    Eigen::VectorXd _grad_L;
+    Eigen::VectorXd _delta_grad_L;
 
-    Matrix _Hess;
-    Vector _grad_obj;
+    Eigen::MatrixXd _Hess;
+    Eigen::VectorXd _grad_obj;
     double _obj;
-    Matrix _Jac_constr;
-    Vector _constr;
-    Vector _l, _u;
+    Eigen::MatrixXd _Jac_constr;
+    Eigen::VectorXd _constr;
+    Eigen::VectorXd _l, _u;
 
     // info
     double _dual_step_norm;

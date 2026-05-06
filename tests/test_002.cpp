@@ -7,16 +7,13 @@ using namespace sqp;
 class MishraBirdFunction: public NonlinearProblem
 {
 public:
-    using Vector = sqp::NonlinearProblem::Vector;
-    using Matrix = sqp::NonlinearProblem::Matrix;
-
     MishraBirdFunction()
     {
         num_var = 2;
         num_constr = 1;
     }
 
-    void objective(const Vector& decision, double& obj) override
+    void objective(const Eigen::VectorXd& decision, double& obj) override
     {
         double x = decision[0];
         double y = decision[1];
@@ -26,10 +23,10 @@ public:
             std::pow(x - y, 2);
     }
 
-    void constraint(const Vector& decision, Vector& constraints,
-        Vector& lower_bnd, Vector& upper_bnd) override
+    void constraint(const Eigen::VectorXd& decision, Eigen::VectorXd& constraints,
+        Eigen::VectorXd& lower_bnd, Eigen::VectorXd& upper_bnd) override
     {
-        Vector xy_vec = Vector::Zero(2);
+        Eigen::VectorXd xy_vec = Eigen::VectorXd::Zero(2);
         xy_vec[0] = decision[0] + 5;
         xy_vec[1] = decision[1] + 5;
         constraints[0] = 25 - xy_vec.squaredNorm();
