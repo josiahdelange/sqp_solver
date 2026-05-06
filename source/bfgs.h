@@ -40,7 +40,8 @@ void update(Mat& B, const Vec& s, const Vec& y) {
         return;
     }
 
-    B.noalias() += -Bs * Bs.transpose() / sBs + r * r.transpose() / sr;
+    B.noalias() += -Bs * Bs.transpose() / sBs;
+    B.noalias() += r * r.transpose() / sr;
 }
 
 } // namespace bfgs

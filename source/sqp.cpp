@@ -1,8 +1,8 @@
 #include <Eigen/Eigenvalues>
 #include <cmath>
 #include <iostream>
-#include "bfgs.hpp"
-#include "sqp.hpp"
+#include "bfgs.h"
+#include "sqp.h"
 
 #ifndef SOLVER_ASSERT
 #define SOLVER_ASSERT(x) eigen_assert(x)
@@ -50,6 +50,7 @@ void SQP<T>::run_solve(Problem& prob) {
     Vector p;         // search direction
     Vector p_lambda;  // dual search direction
     Scalar alpha;     // step size
+    prob.set_eps_grad(_settings.eps_grad);
 
     const int nx = prob.num_var;
     const int nc = prob.num_constr;
@@ -98,6 +99,8 @@ void SQP<T>::run_solve(Problem& prob) {
         if(_settings.verbose) {
             printf("SQP info:\n");
             printf("  Solver iteration: %d\n", _info.iter);
+            std::cout << "  Primal: " << _x.transpose() << "\n";
+            std::cout << "  Dual: " << _lambda.transpose() << "\n";
             printf("  QP iterations: %d\n", _info.qp_solver_iter);
             printf("  Solver status: ");
             if(termination_criteria(_x, prob)) {
@@ -178,8 +181,8 @@ inline bool is_nan(const Eigen::MatrixBase<Derived>& x) {
 template <typename T>
 void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
     /* QP from linearized NLP:
-     * minimize     0.5 x'.P.x + q'.x
-     * subject to   l <= A.x + b <= u
+     * minimize     0.5 x'Px + q'x
+     * subject to   l <= Ax + b <= u
      *
      * with:
      *   P      Hessian of Lagrangian
@@ -188,8 +191,8 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
      *   l,u    constraint bounds
      *
      * transform to:
-     * minimize     0.5 x'.P.x + q'.x
-     * subject to   l <= A.x <= u
+     * minimize     0.5 x'Px + q'x
+     * subject to   l <= Ax <= u
      *
      * Where the constraint bounds l,u set to l=u for equality constraints or
      * set to +/-INFINITY if unbounded.
@@ -204,7 +207,7 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
     if(_info.iter == 1) {
         _Hess.setIdentity();
     } else {
-        _delta_grad_L += _grad_L;  // _delta_grad_L = _grad_Lprev - grad_L
+        _delta_grad_L += _grad_L;  // _delta_grad_L = _grad_L_prev - grad_L
         bfgs::update(_Hess, _step_prev, _delta_grad_L);
     }
 
@@ -226,8 +229,8 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
     SOLVER_ASSERT(!is_nan(_Hess));
 
     // Constraints
-    // from   l <= A.x + b <= u
-    // to   l-b <= A.x     <= u-b
+    // from   l <= Ax + b <= u
+    // to   l-b <= Ax     <= u-b
     Vector l = _l - _constr;
     Vector u = _u - _constr;
     Matrix& A = _Jac_constr;
@@ -236,7 +239,6 @@ void SQP<T>::solve_qp(Problem& prob, Vector& step, Vector& lambda) {
 
     // solve the QP
     run_solve_qp(P, q, A, l, u, step, lambda);
-
     if(_settings.second_order_correction) {
         second_order_correction(prob, step, lambda);
     }

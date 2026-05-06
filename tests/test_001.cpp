@@ -1,6 +1,6 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include "sqp.hpp"
+#include "sqp.h"
 
 using namespace sqp;
 
@@ -13,7 +13,7 @@ public:
     ConstrainedRosenbrock2D()
     {
         num_var = 2;
-        num_constr = 1;
+        num_constr = 3;
     }
 
     void objective(const Vector& decision, Scalar& obj) override
@@ -25,9 +25,17 @@ public:
     void constraint(const Vector& decision, Vector& constraints,
         Vector& lower_bnd, Vector& upper_bnd) override
     {
-        constraints[0] = decision.squaredNorm() - 2;
-        lower_bnd[0] = -1*std::numeric_limits<double>::infinity();
-        upper_bnd[0] = std::numeric_limits<double>::infinity();
+        constraints[0] = decision[0];
+        constraints[1] = decision[1];
+        constraints[2] = std::pow(decision[0], 2) + std::pow(decision[1], 2);
+
+        lower_bnd[0] = -1.5;
+        lower_bnd[1] = -1.5;
+        lower_bnd[2] = 0.0;
+
+        upper_bnd[0] = 1.5;
+        upper_bnd[1] = 1.5;
+        upper_bnd[2] = 2.0;
     }
 };
 
@@ -36,14 +44,15 @@ int main(int argc, char* argv[])
     // Nonlinear problem
     ConstrainedRosenbrock2D problem;
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(2);
-    Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(1);
+    Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(3);
 
     // SQP solver initialization
     sqp::SQP<double> solver;
     solver.settings().max_iter = 100;
+    solver.settings().verbose = true;
     //solver.settings().line_search_max_iter = 10;
     //solver.settings().second_order_correction = true;
-    // solver.settings().eta = 0.5;
+    //solver.settings().eta = 0.5;
 
     // Run SQP solver
     solver.solve(problem, x0, lambda0);

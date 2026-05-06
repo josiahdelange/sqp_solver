@@ -1,6 +1,6 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include "sqp.hpp"
+#include "sqp.h"
 
 using namespace sqp;
 
@@ -18,9 +18,12 @@ public:
 
     void objective(const Vector& decision, Scalar& obj) override
     {
-        obj = std::sin(decision[1])*exp(std::pow(1 - std::cos(decision[0]), 2)) +
-            std::cos(decision[0])*exp(std::pow(1 - std::cos(decision[1]), 2)) +
-            std::pow(decision[0] - decision[1], 2);
+        double x = decision[0];
+        double y = decision[1];
+
+        obj = std::sin(y)*std::exp(std::pow(1 - std::cos(x), 2)) +
+            std::cos(x)*std::exp(std::pow(1 - std::sin(y), 2)) +
+            std::pow(x - y, 2);
     }
 
     void constraint(const Vector& decision, Vector& constraints,
@@ -29,7 +32,7 @@ public:
         Vector xy_vec = Vector::Zero(2);
         xy_vec[0] = decision[0] + 5;
         xy_vec[1] = decision[1] + 5;
-        constraints[0] = xy_vec.squaredNorm() - 25;
+        constraints[0] = 25 - xy_vec.squaredNorm();
         lower_bnd[0] = -1*std::numeric_limits<double>::infinity();
         upper_bnd[0] = std::numeric_limits<double>::infinity();
     }
@@ -40,11 +43,14 @@ int main(int argc, char* argv[])
     // Nonlinear problem
     MishraBirdFunction problem;
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(2);
+    x0[0] = -3.0;
+    x0[1] = -2.0;
     Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(1);
 
     // SQP solver initialization
     sqp::SQP<double> solver;
     solver.settings().max_iter = 100;
+    solver.settings().verbose = true;
     //solver.settings().line_search_max_iter = 10;
     //solver.settings().second_order_correction = true;
     // solver.settings().eta = 0.5;

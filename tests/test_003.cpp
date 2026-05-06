@@ -1,6 +1,6 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include "sqp.hpp"
+#include "sqp.h"
 
 using namespace sqp;
 
@@ -32,7 +32,7 @@ public:
         double xy_limit = std::pow(2*std::cos(t) - (1.0/2.0)*std::cos(2*t) -
             (1.0/4.0)*std::cos(3*t) - (1.0/8.0)*std::cos(4*t), 2) +
             std::pow(2*std::sin(t), 2);
-        constraints[0] = decision.squaredNorm() - xy_limit;
+        constraints[0] = xy_limit - decision.squaredNorm();
         lower_bnd[0] = -1*std::numeric_limits<double>::infinity();
         upper_bnd[0] = std::numeric_limits<double>::infinity();
     }
@@ -43,6 +43,8 @@ int main(int argc, char* argv[])
     // Nonlinear problem
     TownsendModifiedFunction problem;
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(2);
+    x0[0] = 1.5;
+    x0[1] = 1.0;
     Eigen::VectorXd lambda0 = Eigen::VectorXd::Zero(1);
 
     // SQP solver initialization
@@ -51,7 +53,8 @@ int main(int argc, char* argv[])
     solver.settings().verbose = true;
     //solver.settings().line_search_max_iter = 10;
     //solver.settings().second_order_correction = true;
-    // solver.settings().eta = 0.5;
+    //solver.settings().eta = 0.5;
+    solver.settings().eps_grad = 1e-1;
 
     // Run SQP solver
     solver.solve(problem, x0, lambda0);
