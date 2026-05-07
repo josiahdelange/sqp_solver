@@ -36,3 +36,21 @@ add_executable(test_003 tests/test_003.cpp)
 target_link_libraries(test_003 sqp_solver Eigen3::Eigen)
 set_target_properties(test_003 PROPERTIES CMAKE_BUILD_TYPE "Debug")
 add_test(NAME test_003 COMMAND test_003 WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})
+
+# Test program #4: Matyas function
+add_executable(test_004 tests/test_004.cpp)
+target_link_libraries(test_004 sqp_solver Eigen3::Eigen)
+set_target_properties(test_004 PROPERTIES CMAKE_BUILD_TYPE "Debug")
+add_test(NAME test_004 COMMAND test_003 WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})
+
+# Test program #5: Booth function
+add_executable(test_005 tests/test_005.cpp)
+target_link_libraries(test_005 sqp_solver Eigen3::Eigen)
+set_target_properties(test_005 PROPERTIES CMAKE_BUILD_TYPE "Debug")
+add_test(NAME test_005 COMMAND test_005 WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})
+
+# Test program #6: Goldstein-Price function
+add_executable(test_006 tests/test_006.cpp)
+target_link_libraries(test_006 sqp_solver Eigen3::Eigen)
+set_target_properties(test_006 PROPERTIES CMAKE_BUILD_TYPE "Debug")
+add_test(NAME test_006 COMMAND test_006 WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX})
