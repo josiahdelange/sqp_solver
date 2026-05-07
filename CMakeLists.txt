@@ -6,12 +6,9 @@ enable_testing()
 set(Eigen3_DIR third-party/eigen-5.0.0)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
-# OSQP library, v1.0.0
-add_subdirectory(third-party/osqp-v1.0.0)
-
 # Main SQP library
 add_library(sqp_solver STATIC source/qp.cpp source/sqp.cpp)
-target_link_libraries(sqp_solver Eigen3::Eigen osqpstatic)
+target_link_libraries(sqp_solver Eigen3::Eigen)
 target_include_directories(sqp_solver PUBLIC
     ${PROJECT_SOURCE_DIR}/source
     ${PROJECT_SOURCE_DIR}/third-party/osqp-v1.0.0/include/public
