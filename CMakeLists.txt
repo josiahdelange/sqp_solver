@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 project(sqp_solver VERSION 0.1.0 LANGUAGES CXX)
 enable_testing()
-message("CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}")
 
 # Eigen library
 set(Eigen3_DIR third-party/eigen-5.0.0)
