@@ -60,15 +60,19 @@ int main(int argc, char* argv[])
     solver.solve(problem, x0, lambda0);
 
     // Print solution (if found)
+    bool test_case_passed = false;
+    double sol_tol = 1e-3; // generous
     std::cout << "---------------------------------------------------" << std::endl;
     if(solver.info().status == SOLVED) {
         std::cout << "primal solution " << solver.primal_solution().transpose() << std::endl;
         std::cout << "dual solution " << solver.dual_solution().transpose() << std::endl;
-        
+        Eigen::VectorXd soln = solver.primal_solution();
+        test_case_passed = (std::fabs(soln[0] - (0.0)) - sol_tol)
+            && (std::fabs(soln[1] - (-1.0)) - sol_tol);
     } else {
         std::cout << "no solution" << std::endl;
     }
     std::cout << "---------------------------------------------------" << std::endl;
 
-    return 0;
+    return (test_case_passed ? 0 : -1);
 }
