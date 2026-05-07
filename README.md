@@ -5,4 +5,4 @@ Basic/minimal sequential quadratic programming (SQP) solver based on https://git
 
  Test Case | Plot | Function | Minimum | Domain
 :---------:|:----:|:--------:|:-------:|:-------:
- test_001 | ![](tests/figure_001.png) | TODO | TODO | $`-1.5 \leq x \leq 1.5`$
+ test_001 | ![](tests/figure_001.png) | TODO | TODO | $`-1.5 \leq x \leq 1.5`$ $`-1.5 \leq y \leq 1.5`$
