@@ -6,10 +6,17 @@ enable_testing()
 set(Eigen3_DIR third-party/eigen-5.0.0)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
-# Main library
+# OSQP library
+add_subdirectory(third-party/osqp)
+
+# Main SQP library
 add_library(sqp_solver STATIC source/qp.cpp source/sqp.cpp)
-target_link_libraries(sqp_solver Eigen3::Eigen)
-target_include_directories(sqp_solver PUBLIC source)
+target_link_libraries(sqp_solver Eigen3::Eigen osqpstatic)
+target_include_directories(sqp_solver PUBLIC
+    ${PROJECT_SOURCE_DIR}/source
+    ${PROJECT_SOURCE_DIR}/third-party/osqp/include/public
+    ${CMAKE_CURRENT_BINARY_DIR}/third-party/osqp/include/public
+)
 target_compile_features(sqp_solver PUBLIC cxx_std_11)
 
 # Test program #1: Rosenbrock function constrained to a disk

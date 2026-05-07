@@ -1,2 +1,2 @@
 # SQP Solver
-Sequential quadratic programming (SQP) solver based on the Eigen3 (https://eigen.tuxfamily.org) library.  This codebase is a minimal/simplified version of https://github.com/msplr/sqp_solver.
+Basic/minimal sequential quadratic programming (SQP) solver based on https://github.com/msplr/sqp_solver.
