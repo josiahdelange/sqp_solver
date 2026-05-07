@@ -97,3 +97,4 @@ plt.colorbar()
 
 plt.tight_layout()
 plt.show()
+plt.savefig('figure_100.png')
