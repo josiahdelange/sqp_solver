@@ -47,17 +47,25 @@ int main(int argc, char* argv[])
     sqp::SQP solver;
     solver.settings().max_iter = 100;
     solver.settings().verbose = true;
-    //solver.settings().line_search_max_iter = 10;
-    //solver.settings().second_order_correction = true;
-    //solver.settings().eta = 0.5;
+    solver.settings().tau = 0.5; // line search iteration decrease
+    solver.settings().eta = 0.25; // line search parameter
+    solver.settings().rho = 1e-2; // line search parameter
+    solver.settings().eps_prim = 1e-9; // primal step termination threshold
+    solver.settings().eps_dual = 1e-9; // dual step termination threshold
+    solver.settings().eps_grad = 1e-12; // gradient finite difference step size
 
     // Run SQP solver
     solver.solve(problem, x0, lambda0);
 
-    // Print solution
+    // Print solution (if found)
     std::cout << "---------------------------------------------------" << std::endl;
-    std::cout << "primal solution " << solver.primal_solution().transpose() << std::endl;
-    std::cout << "dual solution " << solver.dual_solution().transpose() << std::endl;
+    if(solver.info().status == SOLVED) {
+        std::cout << "primal solution " << solver.primal_solution().transpose() << std::endl;
+        std::cout << "dual solution " << solver.dual_solution().transpose() << std::endl;
+        
+    } else {
+        std::cout << "no solution" << std::endl;
+    }
     std::cout << "---------------------------------------------------" << std::endl;
 
     return 0;
