@@ -22,7 +22,7 @@ SQP::SQP() {
     _qp_solver.settings().verbose = false;
 
     _info.iter = 0;
-    _info.qp_solver_iter;
+    _info.qp_solver_iter = 0;
     _info.status = UNKNOWN;
 }
 
