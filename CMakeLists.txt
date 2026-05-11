@@ -8,11 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Eigen library
-#set(Eigen3_DIR third-party/eigen-5.0.0)
-#find_package(Eigen3 REQUIRED NO_MODULE)
-
-# Main SQP library
+# Main SQP static library
 add_library(sqp_solver STATIC source/qp.cpp source/sqp.cpp)
 target_include_directories(sqp_solver PUBLIC
     ${PROJECT_SOURCE_DIR}/source
